@@ -49,10 +49,10 @@ export function HeroSearch() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl bg-card border border-border shadow-[0_20px_50px_-20px_rgba(21,20,15,0.35)] p-4 sm:p-2"
+      className="rounded-2xl bg-card border border-border shadow-[0_20px_50px_-20px_rgba(21,20,15,0.35)] p-5 sm:p-3"
     >
       <div className="grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_1fr_auto] gap-4 sm:gap-0 sm:divide-x sm:divide-border items-center">
-        <div className="sm:px-5 sm:py-2">
+        <div className="sm:px-5 sm:py-4">
           <label className="block text-xs text-muted-foreground mb-1">Location</label>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -71,7 +71,7 @@ export function HeroSearch() {
           </div>
         </div>
 
-        <div className="sm:px-5 sm:py-2">
+        <div className="sm:px-5 sm:py-4">
           <label className="block text-xs text-muted-foreground mb-1">Looking to</label>
           <select
             className={cn(fieldClass, "cursor-pointer")}
@@ -83,7 +83,7 @@ export function HeroSearch() {
           </select>
         </div>
 
-        <div className="sm:px-5 sm:py-2">
+        <div className="sm:px-5 sm:py-4">
           <label className="block text-xs text-muted-foreground mb-1">Price range</label>
           <select
             className={cn(fieldClass, "cursor-pointer")}
@@ -98,7 +98,7 @@ export function HeroSearch() {
           </select>
         </div>
 
-        <Button type="submit" size="lg" className="rounded-xl w-full sm:w-auto h-12 sm:ml-2">
+        <Button type="submit" size="lg" className="rounded-xl w-full sm:w-auto h-14 sm:ml-2">
           <Search className="h-4 w-4" />
           Search homes
         </Button>

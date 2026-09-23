@@ -60,14 +60,15 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Hero — image runs full-bleed behind the sticky navbar above it */}
       <section className="relative -mt-20">
-        <div className="relative overflow-hidden h-[680px] sm:h-[720px]">
+        <div className="relative overflow-hidden min-h-[calc(83svh+5rem)] flex flex-col">
           <Image
-            src="https://images.unsplash.com/photo-1572727850654-f50a7ead20df?auto=format&fit=crop&w=1800&q=80"
+            src="https://images.unsplash.com/photo-1572727850654-f50a7ead20df?auto=format&fit=crop&w=2600&h=1800&q=85"
             alt="Residential towers in Victoria Island, Lagos"
             fill
             priority
+            quality={90}
             sizes="100vw"
-            className="object-cover"
+            className="object-cover object-center"
           />
           {/* Darken top-down for the navbar, and bottom-up for the headline copy */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/10 to-black/20" />
@@ -79,8 +80,8 @@ export default function HomePage() {
             Victoria Island, Lagos
           </div> */}
 
-          <div className="container mx-auto relative z-10 h-full">
-            <div className="h-full flex flex-col justify-center px-6 sm:px-10 lg:px-14 pt-20 text-white max-w-xl">
+          <div className="container mx-auto relative z-10 flex flex-col flex-1 w-full px-6 sm:px-10 lg:px-14 pt-36 sm:pt-44 pb-10 sm:pb-12">
+            <div className="text-white max-w-xl">
               <Badge
                 variant="secondary"
                 className="mb-5 w-fit px-3 py-1 text-sm gap-2 bg-white/95 text-neutral-900 hover:bg-white"
@@ -114,16 +115,16 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="relative container mx-auto px-4 sm:px-10 lg:px-14 -mt-10 sm:-mt-12 z-10">
-          <HeroSearch />
+            <div className="mt-auto pt-10">
+              <HeroSearch />
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Trust band */}
-      <section className="mt-14 md:mt-16">
+      <section>
         <div className="bg-primary text-primary-foreground">
           <div className="container mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {TRUST_POINTS.map((point) => (
