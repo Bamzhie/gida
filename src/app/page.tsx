@@ -1,16 +1,20 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { LucideIcon } from "lucide-react";
 import {
   Search,
   MapPin,
   ArrowRight,
   Building2,
+  Home,
   KeyRound,
   FileCheck,
   ShieldCheck,
   Receipt,
   Clock3,
   MapPinned,
+  UserRound,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,13 +23,15 @@ import { HeroSearch } from "@/components/marketplace/hero-search";
 import { CostBreakdown } from "@/components/marketplace/cost-breakdown";
 import { TrustList } from "@/components/marketplace/trust-list";
 
-const CATEGORIES: { label: string; type: string; dark?: boolean }[] = [
-  { label: "Apartments", type: "APARTMENT" },
-  { label: "Houses", type: "HOUSE" },
-  { label: "Townhouses", type: "TOWNHOUSE", dark: true },
-  { label: "Condos", type: "CONDO" },
-  { label: "Land", type: "LAND" },
-  { label: "Commercial", type: "COMMERCIAL" },
+const CATEGORIES: { label: string; type: string; icon: LucideIcon }[] = [
+  { label: "Apartments", type: "APARTMENT", icon: Building2 },
+  { label: "Houses", type: "HOUSE", icon: Home },
+  { label: "Townhouses", type: "TOWNHOUSE", icon: Building2 },
+  { label: "Condos", type: "CONDO", icon: Building2 },
+  { label: "Land", type: "LAND", icon: MapPinned },
+  { label: "Commercial", type: "COMMERCIAL", icon: Building2 },
+  { label: "New Homes", type: "", icon: Building2 },
+  { label: "Short-let", type: "", icon: Clock3 },
 ];
 
 const TRUST_POINTS = [
@@ -119,6 +125,28 @@ export default function HomePage() {
             <div className="mt-auto pt-10">
               <HeroSearch />
             </div>
+
+            {/* Property Requests CTA */}
+            <section className="py-12 md:py-16 bg-secondary/5">
+              <div className="container mx-auto px-4 sm:px-10 lg:px-14">
+                <div className="max-w-xl mx-auto text-center">
+                  <h2 className="font-heading text-2xl font-semibold mb-3">Looking for something specific?</h2>
+                  <p className="text-white/70 mb-6">
+                    Tell us what you need and we'll connect you with listings (or agents) that match.
+                  </p>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-xl px-6 py-3 text-lg"
+                    asChild
+                  >
+                    <Link href="/requests">
+                      Post a property request
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </section>
@@ -138,6 +166,29 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Agent Discovery */}
+      <section className="py-12 md:py-16">
+        <div className="container mx-auto px-4 sm:px-10 lg:px-14">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="font-heading text-2xl font-semibold mb-3">Find a trusted agent</h2>
+            <p className="text-white/70 mb-6">
+              Work with verified estate agents and agencies across Lagos. Browse profiles,
+              check specialisations, and contact them directly for your property needs.
+            </p>
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-xl px-6 py-3 text-lg"
+              asChild
+            >
+              <Link href="/agents">
+                View agent directory
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* Categories */}
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4">
@@ -150,18 +201,18 @@ export default function HomePage() {
               See all listings <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {CATEGORIES.map((cat) => (
-              <Link key={cat.type} href={`/listings?propertyType=${cat.type}`}>
+              <Link key={cat.label} href={`/listings?${cat.type ? `propertyType=${cat.type}` : ""}`}>
                 <div
-                  className={`rounded-2xl border border-border p-6 h-32 flex flex-col justify-between transition-colors ${
-                    cat.dark
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card hover:bg-secondary"
+                  className={`rounded-2xl border border-border p-4 flex flex-col items-center justify-between transition-colors hover:bg-secondary ${
+                    cat.type
+                      ? ""
+                      : "opacity-70 cursor-not-allowed"
                   }`}
                 >
-                  <Building2 className={`h-5 w-5 ${cat.dark ? "opacity-80" : "text-muted-foreground"}`} />
-                  <span className="font-medium">{cat.label}</span>
+                  <cat.icon className="h-5 w-5 mb-2 text-muted-foreground" />
+                  <span className="font-medium text-sm line-clamp-1">{cat.label}</span>
                 </div>
               </Link>
             ))}
