@@ -19,9 +19,10 @@ const body = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "http://localhost:3000"),
   title: "Gida - A home in Nigeria, found the honest way",
   description:
-    "Gida is a property marketplace built for Nigeria. Right now that means real, verified listings across Lagos, with every fee shown before you inspect.",
+    "Gida is a Lagos-first property marketplace preview. It uses illustrative local listings, and every fee shown is part of the sample experience.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

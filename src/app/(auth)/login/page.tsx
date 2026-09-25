@@ -70,7 +70,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading} aria-busy={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Sign In
             </Button>

@@ -58,7 +58,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold">Gida</span>
           </Link>
           <CardTitle>Create your account</CardTitle>
-          <CardDescription>Join Nigeria&apos;s trusted real estate marketplace</CardDescription>
+          <CardDescription>Explore the account flow in this frontend preview.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -90,7 +90,7 @@ export default function RegisterPage() {
                 <option value="AGENT">Agent / Landlord</option>
               </select>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading} aria-busy={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Account
             </Button>

@@ -1,70 +1,79 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import type { LucideIcon } from "lucide-react";
-import {
-  Search,
-  MapPin,
-  ArrowRight,
-  Building2,
-  Home,
-  KeyRound,
-  FileCheck,
-  ShieldCheck,
-  Receipt,
-  Clock3,
-  MapPinned,
-  UserRound,
-  Send,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Bath, Bed, Building2, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HeroSearch } from "@/components/marketplace/hero-search";
-import { CostBreakdown } from "@/components/marketplace/cost-breakdown";
-import { TrustList } from "@/components/marketplace/trust-list";
+import { AUDIENCE_PATHS, LANDLORD_PATHS, TRUST_POINTS } from "@/lib/marketing-content";
+import { CategoryBrowser } from "@/components/marketing/category-browser";
+import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
+import { formatPrice } from "@/lib/utils";
 
-const CATEGORIES: { label: string; type: string; icon: LucideIcon }[] = [
-  { label: "Apartments", type: "APARTMENT", icon: Building2 },
-  { label: "Houses", type: "HOUSE", icon: Home },
-  { label: "Townhouses", type: "TOWNHOUSE", icon: Building2 },
-  { label: "Condos", type: "CONDO", icon: Building2 },
-  { label: "Land", type: "LAND", icon: MapPinned },
-  { label: "Commercial", type: "COMMERCIAL", icon: Building2 },
-  { label: "New Homes", type: "", icon: Building2 },
-  { label: "Short-let", type: "", icon: Clock3 },
-];
+const SITE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-const TRUST_POINTS = [
-  { icon: ShieldCheck, title: "Checked, not just listed", body: "Every advertiser goes through a verification step before their listing goes live." },
-  { icon: Receipt, title: "Fees on the page", body: "Agency fee, legal fee and deposit are shown next to the rent, not saved for a phone call." },
-  { icon: Clock3, title: "You can see how fresh it is", body: "Every listing shows the last time its price and availability were actually confirmed." },
-  { icon: MapPinned, title: "Lagos first", body: "We are live in Lagos now, and building out to the rest of Nigeria from here." },
-];
+const HERO_IMAGE =
+  "https://images.unsplash.com/photo-1572727850654-f50a7ead20df?auto=format&fit=crop&w=1200&h=630&q=85";
 
-const LISTING_STEPS = [
-  { icon: FileCheck, title: "Register", body: "Create an account as an agent or landlord, it takes a couple of minutes." },
-  { icon: KeyRound, title: "Verify", body: "Confirm who you are, so people can trust the listings with your name on them." },
-  { icon: Building2, title: "List and publish", body: "Add your photos, price and availability, then publish when you are ready." },
-  { icon: Search, title: "Manage enquiries", body: "Enquiries and viewing requests land in one place, not scattered across your phone." },
-];
+export const metadata: Metadata = {
+  title: "Gida — Find a home in Lagos, without the guesswork",
+  description:
+    "A Lagos-first property marketplace preview. Search sample homes for rent and sale, with visible fees, clear listing status and honest freshness dates.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "Gida — Find a home in Lagos, without the guesswork",
+    description:
+      "A Lagos-first property marketplace preview with visible fees, clear listing status and honest freshness dates.",
+    type: "website",
+    locale: "en_NG",
+    siteName: "Gida",
+    url: "/",
+    images: [
+      {
+        url: HERO_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: "Residential towers in Victoria Island, Lagos",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Gida — Find a home in Lagos, without the guesswork",
+    description:
+      "A Lagos-first property marketplace preview with visible fees, clear listing status and honest freshness dates.",
+    images: [HERO_IMAGE],
+  },
+};
 
-const AREAS = [
-  "Lekki",
-  "Victoria Island",
-  "Ikoyi",
-  "Ikeja GRA",
-  "Yaba",
-  "Surulere",
-  "Ajah",
-  "Magodo",
-  "Gbagada",
-  "Oniru",
-];
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Gida",
+  url: SITE_URL,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${SITE_URL}/listings?keyword={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+};
+
+const FEATURED_PROPERTIES = [...PREVIEW_PROPERTIES]
+  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  .slice(0, 3);
+const NEWEST_ID = FEATURED_PROPERTIES[0]?.id;
+const RENT_COUNT = PREVIEW_PROPERTIES.filter((property) => property.listingType === "RENT").length;
+const SALE_COUNT = PREVIEW_PROPERTIES.filter((property) => property.listingType === "SALE").length;
+const AREA_COUNT = new Set(PREVIEW_PROPERTIES.map((property) => property.city)).size;
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
-      {/* Hero — image runs full-bleed behind the sticky navbar above it */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="relative -mt-20">
         <div className="relative overflow-hidden min-h-[calc(83svh+5rem)] flex flex-col">
           <Image
@@ -76,15 +85,9 @@ export default function HomePage() {
             sizes="100vw"
             className="object-cover object-center"
           />
-          {/* Darken top-down for the navbar, and bottom-up for the headline copy */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/10 to-black/20" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/10 to-transparent" />
-
-          {/* <div className="absolute top-24 right-6 sm:top-28 sm:right-8 flex items-center gap-2 rounded-full bg-white/95 backdrop-blur px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-sm">
-            <MapPin className="h-3.5 w-3.5" />
-            Victoria Island, Lagos
-          </div> */}
 
           <div className="container mx-auto relative z-10 flex flex-col flex-1 w-full px-6 sm:px-10 lg:px-14 pt-36 sm:pt-44 pb-10 sm:pb-12">
             <div className="text-white max-w-xl">
@@ -93,15 +96,13 @@ export default function HomePage() {
                 className="mb-5 w-fit px-3 py-1 text-sm gap-2 bg-white/95 text-neutral-900 hover:bg-white"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                Nigeria&apos;s property marketplace
+                Nigeria&apos;s property marketplace preview
               </Badge>
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-[3.3rem] leading-[1.05] font-semibold">
                 Find a home you won&apos;t have to second guess.
               </h1>
-              <p className="mt-5 text-white/85 text-lg">
-                We are building Gida to cover the whole country. Right now, that means real,
-                verified listings across Lagos, with every fee shown before you go and inspect a
-                place.
+              <p className="text-white/85 text-lg">
+                Explore a Lagos-first property marketplace preview. The listings, prices and verification details you see here are illustrative while the live service is being built.
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-4">
                 <Button
@@ -113,11 +114,8 @@ export default function HomePage() {
                     Explore Lagos listings <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Link
-                  href="#how-it-works"
-                  className="text-sm font-medium text-white hover:text-white/70 transition-colors"
-                >
-                  See how it works
+                <Link href="/how-it-works" className="text-sm font-medium text-white hover:text-white/70 transition-colors">
+                  Learn how Gida works
                 </Link>
               </div>
             </div>
@@ -125,256 +123,237 @@ export default function HomePage() {
             <div className="mt-auto pt-10">
               <HeroSearch />
             </div>
-
-            {/* Property Requests CTA */}
-            <section className="py-12 md:py-16 bg-secondary/5">
-              <div className="container mx-auto px-4 sm:px-10 lg:px-14">
-                <div className="max-w-xl mx-auto text-center">
-                  <h2 className="font-heading text-2xl font-semibold mb-3">Looking for something specific?</h2>
-                  <p className="text-white/70 mb-6">
-                    Tell us what you need and we'll connect you with listings (or agents) that match.
-                  </p>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="rounded-xl px-6 py-3 text-lg"
-                    asChild
-                  >
-                    <Link href="/requests">
-                      Post a property request
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </section>
           </div>
         </div>
       </section>
 
-      {/* Trust band */}
-      <section>
-        <div className="bg-primary text-primary-foreground">
-          <div className="container mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {TRUST_POINTS.map((point) => (
-              <div key={point.title}>
-                <point.icon className="h-6 w-6 mb-3 opacity-80" />
-                <h3 className="font-heading font-semibold mb-1">{point.title}</h3>
-                <p className="text-sm opacity-75">{point.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Agent Discovery */}
-      <section className="py-12 md:py-16">
+      <section className="py-14 md:py-16 border-t border-border">
         <div className="container mx-auto px-4 sm:px-10 lg:px-14">
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="font-heading text-2xl font-semibold mb-3">Find a trusted agent</h2>
-            <p className="text-white/70 mb-6">
-              Work with verified estate agents and agencies across Lagos. Browse profiles,
-              check specialisations, and contact them directly for your property needs.
-            </p>
-            <Button
-              size="lg"
-              variant="outline"
-              className="rounded-xl px-6 py-3 text-lg"
-              asChild
-            >
-              <Link href="/agents">
-                View agent directory
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="py-16 md:py-20">
-        <div className="container mx-auto px-4">
-          <div className="flex items-end justify-between mb-8">
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
             <div>
-              <h2 className="font-heading text-3xl font-semibold mb-2">What are you looking for</h2>
-              <p className="text-muted-foreground">Search by the kind of place you actually want.</p>
+              <p className="mb-3 text-sm font-medium text-accent">Sample homes</p>
+              <h2 className="font-heading text-3xl font-semibold mb-2">The latest places added to the preview.</h2>
+              <p className="text-muted-foreground">Fresh sample listings from across Lagos, updated as the preview grows.</p>
             </div>
-            <Link href="/listings" className="hidden sm:flex items-center gap-1 text-sm font-medium hover:text-accent">
+            <Link href="/listings" className="inline-flex items-center gap-1 text-sm font-medium hover:text-accent">
               See all listings <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {CATEGORIES.map((cat) => (
-              <Link key={cat.label} href={`/listings?${cat.type ? `propertyType=${cat.type}` : ""}`}>
-                <div
-                  className={`rounded-2xl border border-border p-4 flex flex-col items-center justify-between transition-colors hover:bg-secondary ${
-                    cat.type
-                      ? ""
-                      : "opacity-70 cursor-not-allowed"
-                  }`}
-                >
-                  <cat.icon className="h-5 w-5 mb-2 text-muted-foreground" />
-                  <span className="font-medium text-sm line-clamp-1">{cat.label}</span>
-                </div>
+          <div className="grid gap-5 md:grid-cols-3">
+            {FEATURED_PROPERTIES.map((property) => {
+              return (
+                <Card key={property.id} className="group overflow-hidden transition-shadow hover:shadow-lg">
+                  <Link
+                    href={`/listings/${property.id}`}
+                    aria-label={`View ${property.title}`}
+                    className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                      {property.images[0] ? (
+                        <Image
+                          src={property.images[0].url}
+                          alt={property.title}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <Building2 className="h-12 w-12 text-primary/30" aria-hidden="true" />
+                      )}
+                      <Badge className="absolute left-3 top-3" variant={property.listingType === "SALE" ? "default" : "secondary"}>
+                        For {property.listingType === "SALE" ? "Sale" : "Rent"}
+                      </Badge>
+                      {property.id === NEWEST_ID && (
+                        <Badge className="absolute right-3 top-3" variant="secondary">New</Badge>
+                      )}
+                    </div>
+                    <CardContent className="pt-4">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <span className="text-lg font-bold text-primary">{formatPrice(property.price)}</span>
+                        <Badge variant="outline">{property.propertyType}</Badge>
+                      </div>
+                      <h3 className="line-clamp-1 font-semibold">{property.title}</h3>
+                      <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="line-clamp-1">{property.address}, {property.city}</span>
+                      </p>
+                      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+                        {property.bedrooms !== null && <span className="flex items-center gap-1"><Bed className="h-3.5 w-3.5" aria-hidden="true" />{property.bedrooms} beds</span>}
+                        {property.bathrooms !== null && <span className="flex items-center gap-1"><Bath className="h-3.5 w-3.5" aria-hidden="true" />{property.bathrooms} baths</span>}
+                      </div>
+                    </CardContent>
+                  </Link>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-14 md:py-16 border-t border-border">
+        <div className="container mx-auto px-4 sm:px-10 lg:px-14">
+          <div className="grid gap-6 md:grid-cols-3">
+            {AUDIENCE_PATHS.map((path) => (
+              <Link
+                key={path.title}
+                href={path.href}
+                className="group rounded-2xl border border-border bg-card p-6 transition-colors hover:bg-secondary"
+              >
+                <path.icon className="h-7 w-7 text-accent mb-4" aria-hidden="true" />
+                <h2 className="font-heading text-xl font-semibold">{path.title}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{path.body}</p>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary">
+                  {path.cta} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Cost transparency */}
-      <section className="py-16 md:py-20 border-t border-border">
+      <section className="py-16 md:py-20">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-            <CostBreakdown />
+          <div className="mb-8 max-w-2xl">
+            <h2 className="font-heading text-3xl font-semibold mb-2">What are you looking for?</h2>
+            <p className="text-muted-foreground">
+              Switch between renting and buying, then pick a property type. Every card opens the
+              results for that exact combination.
+            </p>
+          </div>
+
+          <CategoryBrowser counts={{ RENT: RENT_COUNT, SALE: SALE_COUNT }} />
+        </div>
+      </section>
+
+      <section className="py-14 md:py-16 border-t border-border bg-secondary/40">
+        <div className="container mx-auto px-4 sm:px-10 lg:px-14">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
-              <h2 className="font-heading text-3xl font-semibold mb-4">
-                The rent is never the whole story
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                Anyone who has rented in Lagos knows the agency fee and legal fee can add up to
-                as much as the rent itself. We think you should see that before you fall in love
-                with a place, not after.
+              <p className="mb-3 text-sm font-medium text-accent">For landlords, agents and developers</p>
+              <h2 className="font-heading text-3xl font-semibold mb-3">Have a property to list?</h2>
+              <p className="max-w-md text-muted-foreground">
+                Preview how Gida will present your homes and developments — structured details, visible fees and a clear path to enquiries, all in one place.
               </p>
-              <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
-                <li>Rent, agency fee, legal fee, deposit and service charge, each shown on its own line</li>
-                <li>A total move in cost, worked out for you, not guessed</li>
-                <li>A date next to the price, so you know how current it is</li>
-                <li>If a fee has not been disclosed, we say so instead of leaving it off the page</li>
-              </ul>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button asChild className="rounded-xl">
+                  <Link href="/list-your-property">List your property <ArrowRight className="h-4 w-4" /></Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-xl">
+                  <Link href="/how-it-works">See the listing flow</Link>
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {LANDLORD_PATHS.map((path) => (
+                <div key={path.title} className="rounded-2xl border border-border bg-card p-6">
+                  <path.icon className="h-7 w-7 text-accent mb-4" aria-hidden="true" />
+                  <h3 className="font-heading text-lg font-semibold">{path.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{path.body}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Two paths */}
-      <section id="how-it-works" className="py-16 md:py-20 border-t border-border">
-        <div className="container mx-auto px-4">
-          <h2 className="font-heading text-3xl font-semibold text-center mb-10">
-            Whichever side of this you are on
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <Card className="rounded-2xl">
-              <CardContent className="pt-6">
-                <Search className="h-9 w-9 text-accent mb-3" />
-                <h3 className="font-heading font-semibold text-lg mb-1">Looking for a home</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Search by area, filter by price and bedrooms, save what you like and message
-                  the advertiser directly.
-                </p>
-                <Button variant="outline" className="rounded-xl" asChild>
-                  <Link href="/listings">
-                    Browse listings <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="rounded-2xl">
-              <CardContent className="pt-6">
-                <Building2 className="h-9 w-9 text-accent mb-3" />
-                <h3 className="font-heading font-semibold text-lg mb-1">Landlord or agent</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  List a property, manage enquiries and viewing requests, and build a track
-                  record people can actually see.
-                </p>
-                <Button variant="outline" className="rounded-xl" asChild>
-                  <Link href="/register">
-                    Start listing <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+      <section className="py-14 md:py-16 border-t border-border">
+        <div className="container mx-auto px-4 sm:px-10 lg:px-14">
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+            <div>
+              <p className="mb-3 text-sm font-medium text-accent">Trust, not guesswork</p>
+              <h2 className="font-heading text-3xl font-semibold mb-2">The questions every renter asks, answered.</h2>
+              <p className="text-muted-foreground">Gida is designed to show costs, status and freshness instead of hiding them behind one vague badge.</p>
+            </div>
+            <Link href="/trust" className="inline-flex items-center gap-1 text-sm font-medium hover:text-accent">
+              Read the trust model <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-        </div>
-      </section>
-
-      {/* Verification */}
-      <section className="py-16 md:py-20 border-t border-border">
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mb-8">
-            <h2 className="font-heading text-3xl font-semibold mb-3">
-              One badge was never going to cover it
-            </h2>
-            <p className="text-muted-foreground">
-              A listing can be genuine in some ways and unconfirmed in others, so instead of one
-              tick that means everything, we track each part separately.
-            </p>
-          </div>
-          <TrustList />
-        </div>
-      </section>
-
-      {/* Listing flow */}
-      <section className="py-16 md:py-20 border-t border-border">
-        <div className="container mx-auto px-4">
-          <h2 className="font-heading text-3xl font-semibold text-center mb-10">
-            Listing something? Here is the path
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
-            {LISTING_STEPS.map((step) => (
-              <div key={step.title} className="rounded-2xl border border-border bg-card p-5">
-                <step.icon className="h-7 w-7 text-accent mb-3" />
-                <h3 className="font-semibold mb-1">{step.title}</h3>
-                <p className="text-sm text-muted-foreground">{step.body}</p>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {TRUST_POINTS.map((point) => (
+              <div key={point.title} className="rounded-2xl border border-border bg-card p-6">
+                <point.icon className="h-6 w-6 text-accent mb-4" aria-hidden="true" />
+                <h3 className="font-heading text-lg font-semibold">{point.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{point.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Nigeria wide, Lagos first */}
-      <section className="py-16 md:py-20 border-t border-border">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+      <section className="py-14 md:py-16 border-t border-border">
+        <div className="container mx-auto px-4 sm:px-10 lg:px-14">
+          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div>
-              <h2 className="font-heading text-3xl font-semibold mb-4">
-                Built for Nigeria, starting in Lagos
-              </h2>
-              <p className="text-muted-foreground mb-3">
-                Gida is meant to work wherever you are in Nigeria, not just one city. We started
-                in Lagos because it is where we could verify listings properly before opening
-                things up further.
+              <p className="mb-3 text-sm font-medium text-accent">One place to start</p>
+              <h2 className="font-heading text-3xl font-semibold mb-4">A clearer way to search Lagos property.</h2>
+              <p className="max-w-xl text-muted-foreground">
+                The detailed product story lives on its own pages, so this page stays focused on the choices that matter first: find a home, find an agent, or post a request.
               </p>
-              <p className="text-muted-foreground">
-                If you are searching from somewhere outside Lagos, stick around. The plan is to
-                bring the same approach, real listings, clear fees and honest verification, to
-                the rest of the country as we grow.
-              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button asChild className="rounded-xl">
+                  <Link href="/how-it-works">Read the product guide <ArrowRight className="h-4 w-4" /></Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-xl">
+                  <Link href="/trust">Explore the trust model</Link>
+                </Button>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium mb-3">Currently covering these Lagos areas</p>
-              <div className="flex flex-wrap gap-2">
-                {AREAS.map((area) => (
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <div className="flex items-center gap-3 border-b border-border pb-4">
+                <MapPin className="h-5 w-5 text-accent" aria-hidden="true" />
+                <div>
+                  <p className="font-heading font-semibold">Lagos first</p>
+                  <p className="text-sm text-muted-foreground">Sample coverage in this preview</p>
+                </div>
+              </div>
+              <dl className="mt-4 grid grid-cols-3 gap-2">
+                <div className="rounded-xl bg-secondary/60 p-3 text-center">
+                  <dd className="font-heading text-xl font-semibold">{RENT_COUNT}</dd>
+                  <dt className="text-xs text-muted-foreground">Sample rentals</dt>
+                </div>
+                <div className="rounded-xl bg-secondary/60 p-3 text-center">
+                  <dd className="font-heading text-xl font-semibold">{SALE_COUNT}</dd>
+                  <dt className="text-xs text-muted-foreground">Sample sales</dt>
+                </div>
+                <div className="rounded-xl bg-secondary/60 p-3 text-center">
+                  <dd className="font-heading text-xl font-semibold">{AREA_COUNT}</dd>
+                  <dt className="text-xs text-muted-foreground">Lagos areas</dt>
+                </div>
+              </dl>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['Lekki', 'Victoria Island', 'Ikoyi', 'Ikeja GRA', 'Yaba', 'Gbagada'].map((area) => (
                   <Link key={area} href={`/listings?city=${encodeURIComponent(area)}`}>
                     <Badge variant="outline" className="text-sm py-1.5 px-3 hover:bg-secondary rounded-full">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {area}
+                      <MapPin className="h-3 w-3 mr-1" />{area}
                     </Badge>
                   </Link>
                 ))}
               </div>
+              <p className="mt-5 text-xs text-muted-foreground">
+                Coverage expands only after the live service is ready. This preview uses local sample data.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
       <section className="pb-16 md:pb-20 px-4">
         <div className="container mx-auto">
           <div className="rounded-[2rem] bg-primary text-primary-foreground px-6 sm:px-10 py-14 text-center">
-            <h2 className="font-heading text-3xl font-semibold mb-3">Ready to look properly?</h2>
-            <p className="opacity-80 max-w-xl mx-auto mb-7">
-              Join the buyers, renters, landlords and agents already using Gida in Lagos.
-            </p>
+            <Building2 className="mx-auto mb-4 h-8 w-8 opacity-80" aria-hidden="true" />
+            <h2 className="font-heading text-3xl font-semibold mb-3">Ready to explore?</h2>
+            <p className="opacity-80 max-w-xl mx-auto mb-7">Choose a path above, then explore the preview at your own pace.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" variant="secondary" className="rounded-xl" asChild>
-                <Link href="/register">Get started</Link>
+                <Link href="/listings">Explore listings</Link>
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="rounded-xl border-primary-foreground text-primary-foreground bg-primary-foreground/1 hover:bg-primary-foreground/10 "
+                className="rounded-xl border-primary-foreground text-primary-foreground bg-primary-foreground/1 hover:bg-primary-foreground/10"
                 asChild
               >
-                <Link href="/listings">Browse listings</Link>
+                <Link href="/how-it-works">How Gida works</Link>
               </Button>
             </div>
           </div>

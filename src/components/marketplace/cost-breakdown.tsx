@@ -34,7 +34,7 @@ export function CostBreakdown() {
       ))}
 
       <div className="flex items-center justify-between border-t-2 border-foreground pt-3 mt-1 font-heading font-semibold text-lg">
-        <span>What you would pay to move in</span>
+        <span>Total package</span>
         <span>{formatPrice(TOTAL)}</span>
       </div>
 

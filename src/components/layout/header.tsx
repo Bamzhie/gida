@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/listings", label: "Listings" },
+  { href: "/map", label: "Map" },
   { href: "/agents", label: "Agents" },
+  { href: "/how-it-works", label: "How it works" },
 ];
 
 export default function Header() {
@@ -56,6 +58,7 @@ export default function Header() {
 
         {/* Desktop pill nav */}
         <nav
+          aria-label="Primary navigation"
           className={cn(
             "hidden md:flex items-center gap-1 rounded-full border px-1.5 py-1.5 transition-colors",
             transparent ? "border-white/25 bg-white/10 backdrop-blur-md" : "border-border bg-card"
@@ -65,9 +68,10 @@ export default function Header() {
             <Link
               key={link.href}
               href={link.href}
+              aria-current={pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`)) ? "page" : undefined}
               className={cn(
                 "px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
-                pathname === link.href
+                pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`))
                   ? transparent
                     ? "bg-white text-neutral-900"
                     : "bg-primary text-primary-foreground"
@@ -92,7 +96,7 @@ export default function Header() {
             )}
             asChild
           >
-            <Link href="/favorites">
+            <Link href="/favorites" aria-label="Saved properties">
               <Heart className="h-5 w-5" />
             </Link>
           </Button>
@@ -113,7 +117,7 @@ export default function Header() {
             )}
             asChild
           >
-            <Link href="/register">List a property</Link>
+            <Link href="/register">Explore listing flow</Link>
           </Button>
         </div>
 
@@ -125,6 +129,9 @@ export default function Header() {
             "md:hidden rounded-full",
             transparent && "text-white hover:bg-white/15 hover:text-white"
           )}
+          aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-navigation"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -133,12 +140,13 @@ export default function Header() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-background">
+        <div id="mobile-navigation" aria-label="Mobile navigation" className="md:hidden border-t border-border bg-background">
           <div className="container mx-auto px-4 py-4 space-y-3">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`)) ? "page" : undefined}
                 className="block py-2 text-sm font-medium text-foreground"
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -150,7 +158,7 @@ export default function Header() {
                 <Link href="/login">Sign in</Link>
               </Button>
               <Button className="flex-1 rounded-full" asChild>
-                <Link href="/register">List a property</Link>
+                <Link href="/register">Explore listing flow</Link>
               </Button>
             </div>
           </div>

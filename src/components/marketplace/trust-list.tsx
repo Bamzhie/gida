@@ -1,11 +1,11 @@
 import { Check, Minus } from "lucide-react";
 
 const ITEMS: { label: string; when: string; done: boolean }[] = [
-  { label: "We checked who the advertiser actually is", when: "Verified 3 June 2026", done: true },
-  { label: "We checked their agency is registered", when: "Verified 3 June 2026", done: true },
-  { label: "Someone from our team has seen the property", when: "Visited 20 August 2026", done: true },
-  { label: "We confirmed the price with the advertiser", when: "Confirmed 12 September 2026", done: true },
-  { label: "We confirmed it is still available", when: "Not yet confirmed", done: false },
+  { label: "Advertiser verification example", when: "Illustrative date", done: true },
+  { label: "Agency registration example", when: "Illustrative date", done: true },
+  { label: "Property visit example", when: "Illustrative date", done: true },
+  { label: "Price confirmation example", when: "Illustrative date", done: true },
+  { label: "Availability confirmation", when: "Preview data", done: false },
 ];
 
 export function TrustList() {
