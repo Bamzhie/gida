@@ -1,12 +1,14 @@
 export type ListingType = "SALE" | "RENT";
 
 export type ListingCategory = "SHORTLET" | "NEWHOMES";
+export type PricePeriod = "YEAR" | "MONTH" | "NIGHT" | "STAY";
 
 export type PreviewProperty = {
   id: string;
   title: string;
   description: string;
   price: number;
+  pricePeriod?: PricePeriod;
   listingType: ListingType;
   category?: ListingCategory;
   propertyType: string;
@@ -49,6 +51,7 @@ export const PREVIEW_PROPERTIES: PreviewProperty[] = [
     description: "A bright, comfortable apartment in a convenient Lekki location with room for a small family and easy access to major roads.",
     price: 3_500_000,
     listingType: "RENT",
+    pricePeriod: "YEAR",
     propertyType: "APARTMENT",
     address: "Lekki Phase 1",
     city: "Lekki",
@@ -107,6 +110,7 @@ export const PREVIEW_PROPERTIES: PreviewProperty[] = [
     description: "A compact self-contained home with straightforward access to transport, work areas and everyday amenities in Yaba.",
     price: 1_200_000,
     listingType: "RENT",
+    pricePeriod: "YEAR",
     propertyType: "APARTMENT",
     address: "Yaba",
     city: "Yaba",
@@ -166,6 +170,7 @@ export const PREVIEW_PROPERTIES: PreviewProperty[] = [
     description: "A furnished, serviced apartment available for short-let stays and annual rent, with a central island location and generous bedroom and bathroom count for a comfortable city home.",
     price: 6_000_000,
     listingType: "RENT",
+    pricePeriod: "YEAR",
     category: "SHORTLET",
     propertyType: "APARTMENT",
     address: "Victoria Island",
@@ -256,6 +261,7 @@ export const PREVIEW_PROPERTIES: PreviewProperty[] = [
     description: "A neat two-bedroom apartment with a practical layout and convenient access to the Victoria Island side of Lagos.",
     price: 4_200_000,
     listingType: "RENT",
+    pricePeriod: "YEAR",
     propertyType: "APARTMENT",
     address: "Oniru",
     city: "Oniru",

@@ -1,117 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { MapPin, MapPinned, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const AREAS = ["Lekki", "Victoria Island", "Ikoyi", "Ikeja", "Yaba", "Surulere", "Ajah", "Magodo", "Gbagada"];
-const PROPERTY_TYPES = [
-  { value: "", label: "Any type" },
-  { value: "APARTMENT", label: "Apartment" },
-  { value: "HOUSE", label: "House" },
-  { value: "TOWNHOUSE", label: "Townhouse" },
-  { value: "CONDO", label: "Condo" },
-  { value: "LAND", label: "Land" },
-  { value: "COMMERCIAL", label: "Commercial" },
+type SearchMode = "rent" | "buy" | "shortlet";
+
+const SEARCH_MODES: { value: SearchMode; label: string; prompt: string }[] = [
+  { value: "rent", label: "Rent", prompt: "Search properties to rent" },
+  { value: "buy", label: "Buy", prompt: "Search properties to buy" },
+  { value: "shortlet", label: "Short-let", prompt: "Find a short-let stay" },
 ];
-const BEDROOMS = ["", "1", "2", "3", "4", "5"];
-const RENT_BUDGETS = [
-  { label: "Any price", min: undefined, max: undefined },
-  { label: "Under 1 million", min: undefined, max: 1_000_000 },
-  { label: "1 to 2.5 million", min: 1_000_000, max: 2_500_000 },
-  { label: "2.5 to 5 million", min: 2_500_000, max: 5_000_000 },
-  { label: "Above 5 million", min: 5_000_000, max: undefined },
-];
-const SALE_BUDGETS = [
-  { label: "Any price", min: undefined, max: undefined },
-  { label: "Under 50 million", min: undefined, max: 50_000_000 },
-  { label: "50 to 100 million", min: 50_000_000, max: 100_000_000 },
-  { label: "100 to 250 million", min: 100_000_000, max: 250_000_000 },
-  { label: "Above 250 million", min: 250_000_000, max: undefined },
-];
-const fieldClass = "w-full bg-transparent text-sm font-medium text-foreground focus-visible:outline-none";
 
 export function HeroSearch() {
   const router = useRouter();
-  const [city, setCity] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [listingType, setListingType] = useState("RENT");
-  const [propertyType, setPropertyType] = useState("");
-  const [bedrooms, setBedrooms] = useState("");
-  const [budgetIdx, setBudgetIdx] = useState(0);
+  const [mode, setMode] = useState<SearchMode>("rent");
+  const [location, setLocation] = useState("");
+  const selectedMode = SEARCH_MODES.find((item) => item.value === mode)!;
 
-  const budgets = listingType === "SALE" ? SALE_BUDGETS : RENT_BUDGETS;
-  const budget = budgets[Math.min(budgetIdx, budgets.length - 1)];
-
-  function handleListingTypeChange(value: string) {
-    setListingType(value);
-    setBudgetIdx(0);
-  }
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const params = new URLSearchParams();
-    if (city.trim()) params.set("city", city.trim());
-    if (keyword.trim()) params.set("keyword", keyword.trim());
-    if (listingType === "SHORTLET") {
+    if (location.trim()) params.set("city", location.trim());
+    if (mode === "rent") params.set("listingType", "RENT");
+    if (mode === "buy") params.set("listingType", "SALE");
+    if (mode === "shortlet") {
       params.set("listingType", "RENT");
       params.set("category", "SHORTLET");
-    } else if (listingType) {
-      params.set("listingType", listingType);
     }
-    if (propertyType) params.set("propertyType", propertyType);
-    if (bedrooms) params.set("bedrooms", bedrooms);
-    if (budget.min !== undefined) params.set("minPrice", String(budget.min));
-    if (budget.max !== undefined) params.set("maxPrice", String(budget.max));
-    router.push(`/listings?${params.toString()}`);
+    const suffix = params.toString();
+    router.push(suffix ? `/listings?${suffix}` : "/listings");
   }
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="rounded-2xl bg-card border border-border shadow-[0_20px_50px_-20px_rgba(21,20,15,0.35)] p-5 sm:p-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.4fr_1.1fr_0.9fr_0.9fr_0.9fr_0.9fr_auto] gap-4 sm:gap-0 sm:divide-x sm:divide-border items-center">
-          <div className="sm:px-4 sm:py-4">
-            <label htmlFor="hero-location" className="block text-xs text-muted-foreground mb-1">Location</label>
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-              <input id="hero-location" list="lagos-areas" placeholder="Lekki, Ikeja, Yaba..." className={fieldClass} value={city} onChange={(event) => setCity(event.target.value)} />
-              <datalist id="lagos-areas">{AREAS.map((area) => <option key={area} value={area} />)}</datalist>
+      <form onSubmit={handleSubmit} className="max-w-2xl overflow-hidden rounded-3xl border border-primary/15 bg-primary text-primary-foreground shadow-[0_24px_70px_-28px_rgba(21,20,15,0.75)]">
+        <div className="flex border-b border-primary-foreground/20 px-4 sm:px-5" role="tablist" aria-label="Property search type">
+          {SEARCH_MODES.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={mode === item.value}
+              onClick={() => setMode(item.value)}
+              className={cn(
+                "border-b-[3px] px-3.5 py-2.5 text-sm font-semibold transition-colors hover:text-primary-foreground",
+                mode === item.value ? "text-primary-foreground" : "text-primary-foreground/65"
+              )}
+              style={{
+                borderBottomColor: mode === item.value ? "#ffffff" : "transparent",
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-4 sm:px-5 sm:py-4">
+          <label htmlFor="hero-location" className="mb-2.5 block text-sm font-semibold">{selectedMode.prompt}</label>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative min-w-0 flex-1">
+              <Search aria-hidden="true" className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                id="hero-location"
+                type="text"
+                autoComplete="off"
+                placeholder="Enter a city, area, or landmark"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                className="h-11 w-full rounded-xl border border-input bg-background pl-11 pr-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-accent sm:text-base"
+              />
             </div>
+            <Button type="submit" size="lg" className="h-11 rounded-xl bg-accent px-6 font-semibold text-accent-foreground hover:bg-accent/90 sm:min-w-[150px]">
+              Search
+            </Button>
           </div>
-          <div className="sm:px-4 sm:py-4">
-            <label htmlFor="hero-keyword" className="block text-xs text-muted-foreground mb-1">Keyword</label>
-            <input id="hero-keyword" type="text" placeholder="2 bedroom, serviced..." className={cn(fieldClass, "cursor-text")} value={keyword} onChange={(event) => setKeyword(event.target.value)} />
-          </div>
-          <div className="sm:px-4 sm:py-4">
-            <label htmlFor="hero-property-type" className="block text-xs text-muted-foreground mb-1">Property type</label>
-            <select id="hero-property-type" className={fieldClass} value={propertyType} onChange={(event) => setPropertyType(event.target.value)}>{PROPERTY_TYPES.map((type) => <option key={type.value || "any"} value={type.value}>{type.label}</option>)}</select>
-          </div>
-          <div className="sm:px-4 sm:py-4">
-            <label htmlFor="hero-bedrooms" className="block text-xs text-muted-foreground mb-1">Bedrooms</label>
-            <select id="hero-bedrooms" className={fieldClass} value={bedrooms} onChange={(event) => setBedrooms(event.target.value)}>{BEDROOMS.map((value) => <option key={value || "any"} value={value}>{value ? `${value}+` : "Any beds"}</option>)}</select>
-          </div>
-          <div className="sm:px-4 sm:py-4">
-            <label htmlFor="hero-listing-type" className="block text-xs text-muted-foreground mb-1">Looking to</label>
-            <select id="hero-listing-type" className={fieldClass} value={listingType} onChange={(event) => handleListingTypeChange(event.target.value)}>
-              <option value="RENT">Rent</option>
-              <option value="SALE">Buy</option>
-              <option value="SHORTLET">Short-let</option>
-            </select>
-          </div>
-          <div className="sm:px-4 sm:py-4">
-            <label htmlFor="hero-price" className="block text-xs text-muted-foreground mb-1">Price range</label>
-            <select id="hero-price" className={fieldClass} value={budgetIdx} onChange={(event) => setBudgetIdx(Number(event.target.value))}>{budgets.map((band, index) => <option key={band.label} value={index}>{band.label}</option>)}</select>
-          </div>
-          <Button type="submit" size="lg" className="rounded-xl w-full sm:w-auto h-14 sm:ml-2"><Search className="h-4 w-4" />Search homes</Button>
         </div>
       </form>
-      <p className="mt-3 flex items-center justify-center gap-2 text-sm text-white/85">
-        <MapPinned className="h-4 w-4" />
-        <Link href="/map" className="font-medium underline underline-offset-4 hover:text-white">Explore nearby on the map</Link>
-      </p>
     </div>
   );
 }

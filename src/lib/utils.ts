@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
+import type { PreviewProperty } from "@/lib/preview-data";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -19,6 +20,16 @@ export function formatDate(date: Date | string): string {
     month: "short",
     day: "numeric",
   }).format(new Date(date));
+}
+
+export function formatPricePeriod(property: Pick<PreviewProperty, "listingType" | "pricePeriod">): string {
+  if (property.listingType === "SALE") return "asking price";
+  const labels = { YEAR: "/year", MONTH: "/month", NIGHT: "/night", STAY: "/stay" };
+  return property.pricePeriod ? labels[property.pricePeriod] : "period not specified";
+}
+
+export function formatListingStatus(status: PreviewProperty["status"]): string {
+  return ({ AVAILABLE: "Available", PENDING: "Pending", SOLD: "Sold", RENTED: "Rented" })[status];
 }
 
 export function truncate(str: string, length: number): string {

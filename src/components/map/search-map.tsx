@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   MapContainer,
@@ -21,6 +22,8 @@ import {
   type LatLngTuple,
 } from "@/lib/geo";
 import { LAGOS_CENTER, SAMPLE_MAP_LISTINGS } from "@/lib/sample-map-listings";
+import { filterPreviewProperties, parseListingQuery } from "@/lib/preview-listings";
+import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
 
 const DRAW_COLOR = "#b1552e";
 const MIN_PX_GAP = 6;
@@ -193,7 +196,10 @@ function FreehandDraw({
 }
 
 export function SearchMap() {
-  const allListings = SAMPLE_MAP_LISTINGS;
+  const searchParams = useSearchParams();
+  const query = useMemo(() => parseListingQuery(new URLSearchParams(searchParams.toString())), [searchParams]);
+  const matchingIds = useMemo(() => new Set(filterPreviewProperties(PREVIEW_PROPERTIES, query).map((property) => property.id)), [query]);
+  const allListings = useMemo(() => SAMPLE_MAP_LISTINGS.filter((listing) => matchingIds.has(listing.id)), [matchingIds]);
   const [drawing, setDrawing] = useState(false);
   const [strokePoints, setStrokePoints] = useState(0);
   const [polygon, setPolygon] = useState<LatLngTuple[] | null>(null);
@@ -272,6 +278,13 @@ export function SearchMap() {
                 <Trash2 className="h-4 w-4" /> Clear area
               </Button>
             )}
+            {!drawing && <Button size="sm" variant="outline" className="rounded-full" disabled={!bounds} onClick={() => {
+              if (!bounds) return;
+              const southWest = bounds.getSouthWest();
+              const northEast = bounds.getNorthEast();
+              setPolygon([[southWest.lat, southWest.lng], [southWest.lat, northEast.lng], [northEast.lat, northEast.lng], [northEast.lat, southWest.lng]]);
+              setSelectedId(null);
+            }}>Use current view</Button>}
             <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
@@ -352,7 +365,7 @@ export function SearchMap() {
           <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-t border-border text-xs text-muted-foreground">
             {!polygon ? (
               <span>
-                {allListings.length} preview homes in Lagos — draw an area to reveal them
+                {allListings.length} preview homes match your search. Draw an area to reveal homes inside it.
               </span>
             ) : (
               <span>
@@ -374,7 +387,7 @@ export function SearchMap() {
           <p className="text-xs text-muted-foreground mb-3">
             {revealed
               ? "Only homes inside the polygon are shown. Clear the area to hide them again."
-              : "Draw an area on the map — matching homes will appear here once you release."}
+              : "Draw an area or use the current map view. Matching homes appear after you choose an area."}
           </p>
           <div className="space-y-3">
             {revealed &&

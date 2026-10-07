@@ -6,6 +6,7 @@ export type ListingQuery = {
   listingType?: "SALE" | "RENT";
   category?: ListingCategory;
   propertyType?: string;
+  status?: PreviewProperty["status"];
   bedrooms?: number;
   minPrice?: number;
   maxPrice?: number;
@@ -40,6 +41,7 @@ export function filterPreviewProperties(
     if (query.listingType && property.listingType !== query.listingType) return false;
     if (query.category && property.category !== query.category) return false;
     if (query.propertyType && property.propertyType !== query.propertyType) return false;
+    if (query.status && property.status !== query.status) return false;
     if (query.bedrooms !== undefined && (property.bedrooms ?? 0) < query.bedrooms) return false;
     if (query.minPrice !== undefined && property.price < query.minPrice) return false;
     if (query.maxPrice !== undefined && property.price > query.maxPrice) return false;
@@ -71,12 +73,14 @@ export function parseListingQuery(searchParams: URLSearchParams): ListingQuery {
   const listingType = searchParams.get("listingType");
   const category = searchParams.get("category");
   const sort = searchParams.get("sort");
+  const status = searchParams.get("status");
   return {
     city: searchParams.get("city") || undefined,
     keyword: searchParams.get("keyword") || undefined,
     listingType: listingType === "SALE" || listingType === "RENT" ? listingType : undefined,
     category: category === "SHORTLET" || category === "NEWHOMES" ? category : undefined,
     propertyType: searchParams.get("propertyType") || undefined,
+    status: status === "AVAILABLE" || status === "PENDING" || status === "SOLD" || status === "RENTED" ? status : undefined,
     bedrooms: number("bedrooms"),
     minPrice: number("minPrice"),
     maxPrice: number("maxPrice"),
@@ -91,6 +95,7 @@ export function listingQueryToSearchParams(query: ListingQuery): URLSearchParams
   if (query.listingType) params.set("listingType", query.listingType);
   if (query.category) params.set("category", query.category);
   if (query.propertyType) params.set("propertyType", query.propertyType);
+  if (query.status) params.set("status", query.status);
   if (query.bedrooms !== undefined) params.set("bedrooms", String(query.bedrooms));
   if (query.minPrice !== undefined) params.set("minPrice", String(query.minPrice));
   if (query.maxPrice !== undefined) params.set("maxPrice", String(query.maxPrice));

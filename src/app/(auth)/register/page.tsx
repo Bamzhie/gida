@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -80,15 +81,7 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">I am a</Label>
-              <select
-                id="role"
-                name="role"
-                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                defaultValue="USER"
-              >
-                <option value="USER">Buyer / Renter</option>
-                <option value="AGENT">Agent / Landlord</option>
-              </select>
+              <Select name="role" defaultValue="USER"><SelectTrigger id="role"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USER">Buyer / Renter</SelectItem><SelectItem value="AGENT">Agent / Landlord</SelectItem></SelectContent></Select>
             </div>
             <Button type="submit" className="w-full" disabled={loading} aria-busy={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}

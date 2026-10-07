@@ -117,7 +117,7 @@ export default function Header() {
             )}
             asChild
           >
-            <Link href="/register">Explore listing flow</Link>
+            <Link href="/list-your-property">List your property</Link>
           </Button>
         </div>
 
@@ -158,7 +158,7 @@ export default function Header() {
                 <Link href="/login">Sign in</Link>
               </Button>
               <Button className="flex-1 rounded-full" asChild>
-                <Link href="/register">Explore listing flow</Link>
+                <Link href="/list-your-property">List your property</Link>
               </Button>
             </div>
           </div>

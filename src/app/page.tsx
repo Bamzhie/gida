@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Bath, Bed, Building2, MapPin } from "lucide-react";
+import { ArrowRight, Building2, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { HeroSearch } from "@/components/marketplace/hero-search";
+import { ListingCard } from "@/components/marketplace/listing-card";
 import { AUDIENCE_PATHS, LANDLORD_PATHS, TRUST_POINTS } from "@/lib/marketing-content";
 import { CategoryBrowser } from "@/components/marketing/category-browser";
 import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
-import { formatPrice } from "@/lib/utils";
 
 const SITE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
@@ -62,7 +61,6 @@ const jsonLd = {
 const FEATURED_PROPERTIES = [...PREVIEW_PROPERTIES]
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   .slice(0, 3);
-const NEWEST_ID = FEATURED_PROPERTIES[0]?.id;
 const RENT_COUNT = PREVIEW_PROPERTIES.filter((property) => property.listingType === "RENT").length;
 const SALE_COUNT = PREVIEW_PROPERTIES.filter((property) => property.listingType === "SALE").length;
 const AREA_COUNT = new Set(PREVIEW_PROPERTIES.map((property) => property.city)).size;
@@ -75,7 +73,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <section className="relative -mt-20">
-        <div className="relative overflow-hidden min-h-[calc(83svh+5rem)] flex flex-col">
+        <div className="relative overflow-hidden min-h-[680px] flex flex-col">
           <Image
             src="https://images.unsplash.com/photo-1572727850654-f50a7ead20df?auto=format&fit=crop&w=2600&h=1800&q=85"
             alt="Residential towers in Victoria Island, Lagos"
@@ -86,7 +84,7 @@ export default function HomePage() {
             className="object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/10 to-black/20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/30 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/10 to-transparent" />
 
           <div className="container mx-auto relative z-10 flex flex-col flex-1 w-full px-6 sm:px-10 lg:px-14 pt-36 sm:pt-44 pb-10 sm:pb-12">
@@ -101,26 +99,18 @@ export default function HomePage() {
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-[3.3rem] leading-[1.05] font-semibold">
                 Find a home you won&apos;t have to second guess.
               </h1>
-              <p className="text-white/85 text-lg">
-                Explore a Lagos-first property marketplace preview. The listings, prices and verification details you see here are illustrative while the live service is being built.
+              <p className="mt-5 text-white/85 text-lg">
+                Visible fees, clear status, and honest dates on every home.
               </p>
-              <div className="mt-7 flex flex-wrap items-center gap-4">
-                <Button
-                  size="lg"
-                  className="rounded-xl h-12 px-6 bg-white text-neutral-900 hover:bg-white/90"
-                  asChild
-                >
-                  <Link href="/listings">
-                    Explore Lagos listings <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Link href="/how-it-works" className="text-sm font-medium text-white hover:text-white/70 transition-colors">
-                  Learn how Gida works
-                </Link>
-              </div>
+              <Link
+                href="/how-it-works"
+                className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-white/85 underline underline-offset-4 transition-colors hover:text-white"
+              >
+                How Gida works <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
 
-            <div className="mt-auto pt-10">
+            <div className="pt-12 sm:pt-14">
               <HeroSearch />
             </div>
           </div>
@@ -140,52 +130,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
-            {FEATURED_PROPERTIES.map((property) => {
-              return (
-                <Card key={property.id} className="group overflow-hidden transition-shadow hover:shadow-lg">
-                  <Link
-                    href={`/listings/${property.id}`}
-                    aria-label={`View ${property.title}`}
-                    className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                      {property.images[0] ? (
-                        <Image
-                          src={property.images[0].url}
-                          alt={property.title}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <Building2 className="h-12 w-12 text-primary/30" aria-hidden="true" />
-                      )}
-                      <Badge className="absolute left-3 top-3" variant={property.listingType === "SALE" ? "default" : "secondary"}>
-                        For {property.listingType === "SALE" ? "Sale" : "Rent"}
-                      </Badge>
-                      {property.id === NEWEST_ID && (
-                        <Badge className="absolute right-3 top-3" variant="secondary">New</Badge>
-                      )}
-                    </div>
-                    <CardContent className="pt-4">
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="text-lg font-bold text-primary">{formatPrice(property.price)}</span>
-                        <Badge variant="outline">{property.propertyType}</Badge>
-                      </div>
-                      <h3 className="line-clamp-1 font-semibold">{property.title}</h3>
-                      <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span className="line-clamp-1">{property.address}, {property.city}</span>
-                      </p>
-                      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                        {property.bedrooms !== null && <span className="flex items-center gap-1"><Bed className="h-3.5 w-3.5" aria-hidden="true" />{property.bedrooms} beds</span>}
-                        {property.bathrooms !== null && <span className="flex items-center gap-1"><Bath className="h-3.5 w-3.5" aria-hidden="true" />{property.bathrooms} baths</span>}
-                      </div>
-                    </CardContent>
-                  </Link>
-                </Card>
-              );
-            })}
+            {FEATURED_PROPERTIES.map((property) => <ListingCard key={property.id} property={property} />)}
           </div>
         </div>
       </section>
@@ -268,12 +213,12 @@ export default function HomePage() {
               Read the trust model <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid divide-y divide-border border-y border-border sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4">
             {TRUST_POINTS.map((point) => (
-              <div key={point.title} className="rounded-2xl border border-border bg-card p-6">
-                <point.icon className="h-6 w-6 text-accent mb-4" aria-hidden="true" />
+              <div key={point.title} className="py-6 sm:px-6 lg:border-r lg:border-border lg:last:border-r-0">
+                <point.icon className="mb-4 h-6 w-6 text-accent" aria-hidden="true" />
                 <h3 className="font-heading text-lg font-semibold">{point.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{point.body}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{point.body}</p>
               </div>
             ))}
           </div>

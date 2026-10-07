@@ -35,7 +35,7 @@ export type CategoryGroup = {
 export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     title: "For rent",
-    blurb: "Places to move into, with yearly rent and visible fees.",
+    blurb: "Explore homes by listing type, compare disclosed costs and see when sample details were confirmed.",
     listingType: "RENT",
     badge: "Rent",
     icon: KeyRound,

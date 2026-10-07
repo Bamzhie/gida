@@ -107,7 +107,7 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
-          variant={saved ? "secondary" : "default"}
+          variant="outline"
           onClick={toggleFavorite}
           aria-pressed={saved}
           className="flex-1 rounded-xl"
