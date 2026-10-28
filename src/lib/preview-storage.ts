@@ -126,6 +126,15 @@ export function savePreviewAgentEnquiry(
   return saved;
 }
 
+export function clearFavorites(): void {
+  if (!canUseStorage()) return;
+  try {
+    window.localStorage.removeItem(FAVORITES_KEY);
+  } catch {
+    // Ignore storage access failures.
+  }
+}
+
 export function clearPreviewData(): void {
   if (!canUseStorage()) return;
   for (const key of [FAVORITES_KEY, REQUESTS_KEY, ENQUIRIES_KEY, AGENT_ENQUIRIES_KEY]) {

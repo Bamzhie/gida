@@ -20,20 +20,24 @@ export default function LoginPage() {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const result = await signIn("credentials", {
-      email: formData.get("email") as string,
-      password: formData.get("password") as string,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email: formData.get("email") as string,
+        password: formData.get("password") as string,
+        redirect: false,
+      });
 
-    setLoading(false);
-
-    if (result?.error) {
-      toast.error("Invalid email or password");
-    } else {
-      toast.success("Welcome back!");
-      router.push("/dashboard");
-      router.refresh();
+      if (result?.error) {
+        toast.error("We couldn't sign you in. Check your details or try again later.");
+      } else {
+        toast.success("Welcome back!");
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch {
+      toast.error("Could not reach the sign-in service. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 

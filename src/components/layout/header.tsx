@@ -153,6 +153,15 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
+            <Link
+              href="/favorites"
+              aria-current={pathname === "/favorites" ? "page" : undefined}
+              className="flex items-center gap-2 py-2 text-sm font-medium text-foreground"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Heart className="h-4 w-4" />
+              Saved properties
+            </Link>
             <div className="flex gap-2 pt-2">
               <Button variant="outline" className="flex-1 rounded-full" asChild>
                 <Link href="/login">Sign in</Link>

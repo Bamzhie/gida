@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getFavoriteIds, saveFavorite, clearPreviewData } from "@/lib/preview-storage";
+import { getFavoriteIds, saveFavorite, clearFavorites } from "@/lib/preview-storage";
 import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
 import { ListingCard } from "@/components/marketplace/listing-card";
 
@@ -36,7 +36,7 @@ export default function FavoritesPage() {
         <div><h1 className="font-heading text-3xl font-semibold">Saved properties</h1><p className="mt-1 text-muted-foreground">Your preview favorites are stored in this browser.</p></div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild><Link href="/listings">Explore listings</Link></Button>
-          {favorites.length > 0 && <Button variant="ghost" onClick={() => { clearPreviewData(); setFavoriteIds([]); }}>Clear preview data</Button>}
+          {favorites.length > 0 && <Button variant="ghost" onClick={() => { clearFavorites(); setFavoriteIds([]); }}>Clear saved properties</Button>}
         </div>
       </div>
       {favorites.length === 0 ? (

@@ -11,6 +11,17 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+const fieldMessage = (error: unknown): string => {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    for (const value of Object.values(error)) {
+      const message = Array.isArray(value) ? value[0] : value;
+      if (typeof message === "string") return message;
+    }
+  }
+  return "Registration failed. Please check your details and try again.";
+};
+
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -38,13 +49,13 @@ export default function RegisterPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        toast.error(result.error || "Registration failed");
+        toast.error(fieldMessage(result.error));
       } else {
         toast.success("Account created! Please sign in.");
         router.push("/login");
       }
     } catch {
-      toast.error("Something went wrong");
+      toast.error("Could not reach the registration service. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +99,12 @@ export default function RegisterPage() {
               Create Account
             </Button>
           </form>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            By creating an account you agree to the{" "}
+            <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">terms of service</Link>
+            {" "}and{" "}
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">privacy policy</Link>.
+          </p>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/login" className="text-primary font-medium hover:underline">

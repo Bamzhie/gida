@@ -24,6 +24,11 @@ export default function PrivacyPage() {
             any landlord, agent or other user.
           </p>
           <p>
+            Account forms are the exception. When you submit the sign-up or sign-in form, the name, email address, phone
+            number and password you enter are sent to the Gida server. Creating an account in the preview does not start a
+            live listing, enquiry or agent relationship.
+          </p>
+          <p>
             Like most websites, the preview may receive standard technical information such as your IP address and browser
             type while pages load.
           </p>
