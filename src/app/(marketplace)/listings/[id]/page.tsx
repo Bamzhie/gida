@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ListingActions } from "@/components/marketplace/listing-actions";
 import { PropertyArtwork } from "@/components/marketplace/property-artwork";
 import { ListingCard } from "@/components/marketplace/listing-card";
+import { PropertyGallery } from "@/components/marketplace/property-gallery";
 import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
 
 type Props = { params: Promise<{ id: string }> };
@@ -24,9 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function CostRow({ label, amount }: { label: string; amount?: number }) {
+function CostRow({ label, amount, hint }: { label: string; amount?: number; hint?: string }) {
   if (amount === undefined) return null;
-  return <div className="flex items-center justify-between border-b border-border py-2.5 text-sm"><span className="text-muted-foreground">{label}</span><span className="font-medium">{formatPrice(amount)}</span></div>;
+  return <div className="flex items-center justify-between border-b border-border py-2.5 text-sm"><span className="text-muted-foreground">{label}</span><span className="font-medium">{formatPrice(amount)}{hint && <span className="ml-1 text-xs font-normal text-muted-foreground">{hint}</span>}</span></div>;
 }
 
 export default async function ListingDetailPage({ params }: Props) {
@@ -34,15 +35,18 @@ export default async function ListingDetailPage({ params }: Props) {
   const property = getPreviewProperty(id);
   if (!property) notFound();
 
-  const costRows = [
-    ["Price", property.price],
-    ["Agency fee", property.costs.agencyFee],
-    ["Legal fee", property.costs.legalFee],
-    ["Caution / deposit", property.costs.caution],
-    ["Service charge", property.costs.serviceCharge],
-    ["Other disclosed costs", property.costs.other],
-  ] as const;
-  const total = costRows.reduce((sum, [, amount]) => sum + (amount ?? 0), 0);
+  const isRent = property.listingType === "RENT";
+  const rent = isRent ? property.costs.rent ?? property.price : undefined;
+  const recurringCosts: { label: string; amount: number; hint?: string }[] = [];
+  if (rent !== undefined) recurringCosts.push({ label: "Rent", amount: rent, hint: formatPricePeriod(property) });
+  if (property.costs.serviceCharge !== undefined) recurringCosts.push({ label: "Service charge", amount: property.costs.serviceCharge, hint: isRent ? formatPricePeriod(property) : undefined });
+  const oneTimeCosts = [
+    { label: "Agency fee", amount: property.costs.agencyFee },
+    { label: "Legal fee", amount: property.costs.legalFee },
+    { label: "Caution / deposit", amount: property.costs.caution },
+    { label: "Other disclosed costs", amount: property.costs.other },
+  ].filter((cost): cost is { label: string; amount: number } => cost.amount !== undefined);
+  const disclosedTotal = (isRent ? 0 : property.price) + recurringCosts.reduce((sum, cost) => sum + cost.amount, 0) + oneTimeCosts.reduce((sum, cost) => sum + cost.amount, 0);
   const inSameArea = PREVIEW_PROPERTIES.filter((candidate) => candidate.id !== property.id && candidate.city === property.city)
     .sort((a, b) => Math.abs(a.price - property.price) - Math.abs(b.price - property.price));
   const similarProperties = (inSameArea.length > 0 ? inSameArea : PREVIEW_PROPERTIES.filter((candidate) => candidate.id !== property.id && candidate.listingType === property.listingType && candidate.propertyType === property.propertyType)
@@ -66,14 +70,13 @@ export default async function ListingDetailPage({ params }: Props) {
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
         <div className="space-y-6">
           <Card className="overflow-hidden">
-            <div className="relative h-72 overflow-hidden bg-secondary sm:h-96">
-              {property.images[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={property.images[0].url} alt={property.title} className="h-full w-full object-cover" />
-              ) : (
+            {property.images.length > 0 ? (
+              <PropertyGallery images={property.images} title={property.title} />
+            ) : (
+              <div className="relative h-72 overflow-hidden bg-secondary sm:h-96">
                 <PropertyArtwork propertyType={property.propertyType} className="absolute inset-0 h-full w-full" />
-              )}
-            </div>
+              </div>
+            )}
             <CardContent className="pt-5">
               <div className="flex flex-wrap gap-2">
                 <Badge variant={property.listingType === "SALE" ? "default" : "secondary"}>For {property.listingType === "SALE" ? "Sale" : "Rent"}</Badge>
@@ -121,10 +124,21 @@ export default async function ListingDetailPage({ params }: Props) {
           <Card>
             <CardContent className="pt-6">
               <h2 className="mb-1 text-lg font-semibold">Cost breakdown</h2>
-              <p className="mb-4 text-xs text-muted-foreground">Only disclosed figures are shown.</p>
-              {costRows.map(([label, amount]) => <CostRow key={label} label={label} amount={amount} />)}
-              <div className="mt-3 flex items-center justify-between border-t-2 border-foreground pt-3 font-semibold"><span>Disclosed subtotal</span><span>{formatPrice(total)}</span></div>
-              <p className="mt-2 text-xs text-muted-foreground">This subtotal includes only the amounts disclosed above. It may not represent the full move-in cost.</p>
+              <p className="mb-4 text-xs text-muted-foreground">Only figures the advertiser disclosed are shown.</p>
+              {isRent ? (
+                <>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recurring</p>
+                  {recurringCosts.map((cost) => <CostRow key={cost.label} label={cost.label} amount={cost.amount} hint={cost.hint} />)}
+                </>
+              ) : <CostRow label="Asking price" amount={property.price} />}
+              {oneTimeCosts.length > 0 && (
+                <>
+                  <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">One-time</p>
+                  {oneTimeCosts.map((cost) => <CostRow key={cost.label} label={cost.label} amount={cost.amount} />)}
+                </>
+              )}
+              <div className="mt-3 flex items-center justify-between border-t-2 border-foreground pt-3 font-semibold"><span>{isRent ? "First year, as disclosed" : "Total disclosed"}</span><span>{formatPrice(disclosedTotal)}</span></div>
+              <p className="mt-2 text-xs text-muted-foreground">Includes only the amounts shown above. A caution or deposit is normally refundable, and this total may not cover every move-in cost.</p>
             </CardContent>
           </Card>
 

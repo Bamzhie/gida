@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Inter } from "next/font/google";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import { Toaster } from "sonner";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const heading = Bricolage_Grotesque({
@@ -19,7 +20,7 @@ const body = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "http://localhost:3000"),
+  metadataBase: siteUrl,
   title: "Gida - A home in Nigeria, found the honest way",
   description:
     "Gida is a Lagos-first property marketplace preview. It uses illustrative local listings, and every fee shown is part of the sample experience.",

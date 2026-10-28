@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Bath, Bed, Heart, MapPin, Maximize } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +22,13 @@ export function ListingCard({ property, favorite = false, onFavorite }: ListingC
       <Link href={`/listings/${property.id}`} aria-label={`View ${property.title}`} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
         <div className="relative h-48 overflow-hidden bg-secondary">
           {property.images[0] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={property.images[0].url} alt={property.title} className="h-full w-full object-cover" />
+            <Image
+              src={property.images[0].url}
+              alt={property.title}
+              fill
+              sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw"
+              className="object-cover"
+            />
           ) : <PropertyArtwork propertyType={property.propertyType} className="absolute inset-0 h-full w-full" />}
           <Badge className="absolute left-3 top-3" variant={property.listingType === "SALE" ? "default" : "secondary"}>For {property.listingType === "SALE" ? "Sale" : "Rent"}</Badge>
           <Badge className={`absolute ${onFavorite ? "left-3 top-12" : "right-3 top-3"}`} variant={property.status === "AVAILABLE" ? "success" : property.status === "PENDING" ? "warning" : "outline"}>{formatListingStatus(property.status)}</Badge>

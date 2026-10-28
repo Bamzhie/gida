@@ -37,26 +37,33 @@ export function HeroSearch() {
   return (
     <div>
       <form onSubmit={handleSubmit} className="max-w-2xl overflow-hidden rounded-3xl border border-primary/15 bg-primary text-primary-foreground shadow-[0_24px_70px_-28px_rgba(21,20,15,0.75)]">
-        <div className="flex border-b border-primary-foreground/20 px-4 sm:px-5" role="tablist" aria-label="Property search type">
-          {SEARCH_MODES.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              role="tab"
-              aria-selected={mode === item.value}
-              onClick={() => setMode(item.value)}
-              className={cn(
-                "border-b-[3px] px-3.5 py-2.5 text-sm font-semibold transition-colors hover:text-primary-foreground",
-                mode === item.value ? "text-primary-foreground" : "text-primary-foreground/65"
-              )}
-              style={{
-                borderBottomColor: mode === item.value ? "#ffffff" : "transparent",
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+        <fieldset className="border-b border-primary-foreground/20 px-4 sm:px-5">
+          <legend className="sr-only">Property search type</legend>
+          <div className="flex">
+            {SEARCH_MODES.map((item) => (
+              <label key={item.value} className="group relative flex cursor-pointer items-center px-3.5 py-2.5 text-sm font-semibold">
+                <input
+                  type="radio"
+                  name="search-mode"
+                  value={item.value}
+                  checked={mode === item.value}
+                  onChange={() => setMode(item.value)}
+                  className="peer sr-only"
+                />
+                <span className={cn("transition-colors", mode === item.value ? "text-primary-foreground" : "text-primary-foreground/65 group-hover:text-primary-foreground")}>
+                  {item.label}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute inset-x-2 bottom-0 h-[3px] rounded-full bg-primary-foreground transition-opacity peer-focus-visible:opacity-100",
+                    mode === item.value ? "opacity-100" : "opacity-0"
+                  )}
+                />
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <div className="p-4 sm:px-5 sm:py-4">
           <label htmlFor="hero-location" className="mb-2.5 block text-sm font-semibold">{selectedMode.prompt}</label>
