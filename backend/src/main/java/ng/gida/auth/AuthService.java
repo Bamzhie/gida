@@ -16,11 +16,14 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder encoder;
     private final TokenService tokens;
+    private final RefreshTokenService refreshTokens;
 
-    public AuthService(UserRepository users, PasswordEncoder encoder, TokenService tokens) {
+    public AuthService(UserRepository users, PasswordEncoder encoder, TokenService tokens,
+                       RefreshTokenService refreshTokens) {
         this.users = users;
         this.encoder = encoder;
         this.tokens = tokens;
+        this.refreshTokens = refreshTokens;
     }
 
     @Transactional
@@ -46,9 +49,25 @@ public class AuthService {
         if (!"ACTIVE".equals(user.status())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "account_suspended", "This account is suspended");
         }
-        String token = tokens.issueAccessToken(user.id(), user.role());
-        return new LoginResponse(token, TokenService.ACCESS_TTL.toSeconds(),
+        RefreshTokenService.Issued refresh = refreshTokens.issue(user.id());
+        return new LoginResponse(tokens.issueAccessToken(user.id(), user.role()),
+                TokenService.ACCESS_TTL.toSeconds(),
+                refresh.token(), RefreshTokenService.REFRESH_TTL.toSeconds(),
                 new AuthUser(user.id(), user.name(), user.email(), user.role(), null));
+    }
+
+    public RefreshResponse refresh(String presented) {
+        RefreshTokenService.Issued rotated = refreshTokens.rotate(presented);
+        String role = users.findAuthUser(rotated.userId())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "invalid_refresh_token", "Refresh token is not valid"))
+                .role();
+        return new RefreshResponse(tokens.issueAccessToken(rotated.userId(), role),
+                TokenService.ACCESS_TTL.toSeconds(),
+                rotated.token(), RefreshTokenService.REFRESH_TTL.toSeconds());
+    }
+
+    public void logout(String presented) {
+        refreshTokens.revoke(presented);
     }
 
     public AuthUser me(UUID userId) {

@@ -37,4 +37,15 @@ public class AuthController {
     public AuthUser me(@AuthenticationPrincipal Jwt jwt) {
         return auth.me(UUID.fromString(jwt.getSubject()));
     }
+
+    @PostMapping("/refresh")
+    public RefreshResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return auth.refresh(request.refreshToken());
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody RefreshRequest request) {
+        auth.logout(request.refreshToken());
+    }
 }
