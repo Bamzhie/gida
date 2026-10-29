@@ -17,17 +17,22 @@ import "leaflet/dist/leaflet.css";
 import { Pencil, X, Trash2, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  filterByPolygon,
-  type LatLngTuple,
-} from "@/lib/geo";
-import { LAGOS_CENTER, SAMPLE_MAP_LISTINGS } from "@/lib/sample-map-listings";
-import { filterPreviewProperties, parseListingQuery } from "@/lib/preview-listings";
-import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
+import { listingPriceLabel, toCardModel, type ListingCardModel } from "@/lib/listing-view";
+import { listingQueryToSearchParams, parseListingQuery } from "@/lib/listing-params";
+import type { ListingSummaryDto, PageResponse } from "@/lib/api-types";
 
+type LatLngTuple = [number, number];
+
+const LAGOS_CENTER: [number, number] = [6.5244, 3.3792];
 const DRAW_COLOR = "#b1552e";
 const MIN_PX_GAP = 6;
 const MAX_POINTS = 400;
+
+type MappedListing = ListingCardModel & { latitude: number; longitude: number };
+
+function hasCoordinates(listing: ListingCardModel): listing is MappedListing {
+  return listing.latitude !== null && listing.longitude !== null;
+}
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
@@ -61,6 +66,20 @@ function priceIcon(label: string, active: boolean) {
     iconSize: [0, 0],
     iconAnchor: [0, 0],
   });
+}
+
+function polygonGeoJson(points: LatLngTuple[]): string {
+  const ring = points.map(([lat, lng]) => [Number(lng.toFixed(6)), Number(lat.toFixed(6))]);
+  ring.push(ring[0]);
+  return JSON.stringify({ type: "Polygon", coordinates: [ring] });
+}
+
+function bboxParam(bounds: L.LatLngBounds): string {
+  const southWest = bounds.getSouthWest();
+  const northEast = bounds.getNorthEast();
+  return [southWest.lng, southWest.lat, northEast.lng, northEast.lat]
+    .map((value) => value.toFixed(6))
+    .join(",");
 }
 
 function BoundsTracker({ onBoundsChange }: { onBoundsChange: (bounds: L.LatLngBounds) => void }) {
@@ -197,15 +216,62 @@ function FreehandDraw({
 
 export function SearchMap() {
   const searchParams = useSearchParams();
-  const query = useMemo(() => parseListingQuery(new URLSearchParams(searchParams.toString())), [searchParams]);
-  const matchingIds = useMemo(() => new Set(filterPreviewProperties(PREVIEW_PROPERTIES, query).map((property) => property.id)), [query]);
-  const allListings = useMemo(() => SAMPLE_MAP_LISTINGS.filter((listing) => matchingIds.has(listing.id)), [matchingIds]);
+  const query = useMemo(
+    () => parseListingQuery(new URLSearchParams(searchParams.toString())),
+    [searchParams]
+  );
   const [drawing, setDrawing] = useState(false);
   const [strokePoints, setStrokePoints] = useState(0);
   const [polygon, setPolygon] = useState<LatLngTuple[] | null>(null);
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const [searchAsIMove, setSearchAsIMove] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [listings, setListings] = useState<MappedListing[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
+  const revealed = polygon !== null && !drawing;
+  const bboxKey = useMemo(
+    () => (searchAsIMove && bounds ? bboxParam(bounds) : ""),
+    [bounds, searchAsIMove]
+  );
+
+  useEffect(() => {
+    if (!revealed || !polygon) {
+      const timer = window.setTimeout(() => {
+        setListings([]);
+        setStatus("idle");
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setStatus("loading");
+        const params = listingQueryToSearchParams({ ...query, page: undefined });
+        params.set("polygon", polygonGeoJson(polygon));
+        if (bboxKey) params.set("bbox", bboxKey);
+        params.set("size", "100");
+        try {
+          const response = await fetch(`/api/listings?${params.toString()}`, {
+            signal: controller.signal,
+            cache: "no-store",
+          });
+          if (!response.ok) throw new Error("Map search failed");
+          const page = (await response.json()) as PageResponse<ListingSummaryDto>;
+          setListings(page.items.map(toCardModel).filter(hasCoordinates));
+          setStatus("ready");
+        } catch {
+          if (!controller.signal.aborted) setStatus("error");
+        }
+      })();
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [bboxKey, polygon, query, revealed]);
 
   function startDrawing() {
     setPolygon(null);
@@ -233,20 +299,6 @@ export function SearchMap() {
     setStrokePoints(0);
   }
 
-  const revealed = polygon !== null && !drawing;
-  const visibleListings = useMemo(() => {
-    if (!revealed) return [];
-    let result = filterByPolygon(allListings, polygon);
-    if (searchAsIMove && bounds) {
-      result = result.filter((listing) => bounds.contains([listing.lat, listing.lng]));
-    }
-    return result;
-  }, [allListings, bounds, polygon, revealed, searchAsIMove]);
-  const inPolygonCount = useMemo(
-    () => visibleListings.length,
-    [visibleListings]
-  );
-
   return (
     <div className="flex flex-col lg:flex-row gap-4">
       <div className="lg:flex-1">
@@ -269,22 +321,32 @@ export function SearchMap() {
               </>
             )}
             {polygon && !drawing && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full ml-auto"
-                onClick={clearPolygon}
-              >
+              <Button size="sm" variant="outline" className="rounded-full ml-auto" onClick={clearPolygon}>
                 <Trash2 className="h-4 w-4" /> Clear area
               </Button>
             )}
-            {!drawing && <Button size="sm" variant="outline" className="rounded-full" disabled={!bounds} onClick={() => {
-              if (!bounds) return;
-              const southWest = bounds.getSouthWest();
-              const northEast = bounds.getNorthEast();
-              setPolygon([[southWest.lat, southWest.lng], [southWest.lat, northEast.lng], [northEast.lat, northEast.lng], [northEast.lat, southWest.lng]]);
-              setSelectedId(null);
-            }}>Use current view</Button>}
+            {!drawing && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                disabled={!bounds}
+                onClick={() => {
+                  if (!bounds) return;
+                  const southWest = bounds.getSouthWest();
+                  const northEast = bounds.getNorthEast();
+                  setPolygon([
+                    [southWest.lat, southWest.lng],
+                    [southWest.lat, northEast.lng],
+                    [northEast.lat, northEast.lng],
+                    [northEast.lat, southWest.lng],
+                  ]);
+                  setSelectedId(null);
+                }}
+              >
+                Use current view
+              </Button>
+            )}
             <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
@@ -315,18 +377,18 @@ export function SearchMap() {
                 onComplete={handleComplete}
               />
               {revealed &&
-                visibleListings.map((listing) => (
+                listings.map((listing) => (
                   <Marker
                     key={listing.id}
-                    position={[listing.lat, listing.lng]}
-                    icon={priceIcon(listing.priceLabel, selectedId === listing.id)}
+                    position={[listing.latitude, listing.longitude]}
+                    icon={priceIcon(listingPriceLabel(listing), selectedId === listing.id)}
                     eventHandlers={{ click: () => setSelectedId(listing.id) }}
                   >
                     <Popup>
                       <div className="text-sm">
                         <p className="font-semibold">{listing.title}</p>
-                        <p className="text-muted-foreground">{listing.area}</p>
-                        <p className="font-bold mt-1">{listing.priceLabel}</p>
+                        <p className="text-muted-foreground">{listing.area ?? listing.state ?? "Lagos"}</p>
+                        <p className="font-bold mt-1">{listingPriceLabel(listing)}</p>
                         <Link href={`/listings/${listing.id}`} className="underline underline-offset-2">
                           View listing
                         </Link>
@@ -364,17 +426,19 @@ export function SearchMap() {
 
           <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-t border-border text-xs text-muted-foreground">
             {!polygon ? (
-              <span>
-                {allListings.length} preview homes match your search. Draw an area to reveal homes inside it.
-              </span>
+              <span>Draw an area to reveal homes inside it.</span>
+            ) : status === "loading" ? (
+              <span>Searching this area…</span>
+            ) : status === "error" ? (
+              <span>Map results are temporarily unavailable.</span>
             ) : (
               <span>
-                <strong className="text-foreground">{inPolygonCount}</strong> of{" "}
-                {allListings.length} preview homes inside your area
+                <strong className="text-foreground">{listings.length}</strong>{" "}
+                {listings.length === 1 ? "home" : "homes"} inside your area
                 {searchAsIMove && bounds ? " and current map view" : ""}
               </span>
             )}
-            <Badge variant="outline" className="rounded-full">preview data</Badge>
+            <Badge variant="outline" className="rounded-full">live listings</Badge>
           </div>
         </div>
       </div>
@@ -391,7 +455,7 @@ export function SearchMap() {
           </p>
           <div className="space-y-3">
             {revealed &&
-              visibleListings.map((listing) => (
+              listings.map((listing) => (
                 <button
                   key={listing.id}
                   onClick={() => setSelectedId(listing.id)}
@@ -402,20 +466,28 @@ export function SearchMap() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="font-bold text-sm">{listing.priceLabel}</span>
+                    <span className="font-bold text-sm">{listingPriceLabel(listing)}</span>
                     <Badge variant={listing.listingType === "SALE" ? "default" : "secondary"} className="text-[11px]">
                       For {listing.listingType === "SALE" ? "Sale" : "Rent"}
                     </Badge>
                   </div>
                   <p className="text-sm font-medium line-clamp-1">{listing.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {listing.area}
-                    {listing.beds ? ` · ${listing.beds} bed` : ""}
-                    {listing.baths ? ` · ${listing.baths} bath` : ""}
+                    {listing.area ?? listing.state ?? "Lagos"}
+                    {listing.bedrooms ? ` · ${listing.bedrooms} bed` : ""}
+                    {listing.bathrooms ? ` · ${listing.bathrooms} bath` : ""}
                   </p>
                 </button>
               ))}
-            {revealed && visibleListings.length === 0 && (
+            {revealed && status === "loading" && (
+              <p className="text-sm text-muted-foreground text-center py-8">Searching this area…</p>
+            )}
+            {revealed && status === "error" && (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Map results are temporarily unavailable. Try drawing the area again.
+              </p>
+            )}
+            {revealed && status === "ready" && listings.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No homes inside this area yet. Try drawing a bigger area.
               </p>
@@ -423,11 +495,9 @@ export function SearchMap() {
             {!revealed && (
               <div className="text-center py-8">
                 <EyeOff className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground mb-3">
-                  Browse all preview homes
-                </p>
+                <p className="text-sm text-muted-foreground mb-3">Browse all homes</p>
                 <Button size="sm" variant="outline" className="rounded-full" asChild>
-                  <Link href="/listings">Browse all preview homes</Link>
+                  <Link href="/listings">Browse all listings</Link>
                 </Button>
                 <Button size="sm" className="rounded-full" onClick={startDrawing}>
                   <Pencil className="h-4 w-4" /> Draw search area

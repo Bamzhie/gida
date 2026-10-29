@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HeroSearch } from "@/components/marketplace/hero-search";
 import { ListingCard } from "@/components/marketplace/listing-card";
-import { AUDIENCE_PATHS, LANDLORD_PATHS, TRUST_POINTS } from "@/lib/marketing-content";
+import { AUDIENCE_PATHS, LANDING_AREAS, LANDLORD_PATHS, TRUST_POINTS } from "@/lib/marketing-content";
 import { CategoryBrowser } from "@/components/marketing/category-browser";
-import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
-
-const SITE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+import { searchListings } from "@/lib/listings";
+import { toCardModel } from "@/lib/listing-view";
+import { siteUrl } from "@/lib/site";
 
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1572727850654-f50a7ead20df?auto=format&fit=crop&w=1200&h=630&q=85";
@@ -18,12 +18,12 @@ const HERO_IMAGE =
 export const metadata: Metadata = {
   title: "Gida — Find a home in Lagos, without the guesswork",
   description:
-    "A Lagos-first property marketplace preview. Search sample homes for rent and sale, with visible fees, clear listing status and honest freshness dates.",
+    "A Lagos-first property marketplace. Search homes for rent and sale, with visible fees, clear listing status and honest freshness dates.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Gida — Find a home in Lagos, without the guesswork",
     description:
-      "A Lagos-first property marketplace preview with visible fees, clear listing status and honest freshness dates.",
+      "A Lagos-first property marketplace with visible fees, clear listing status and honest freshness dates.",
     type: "website",
     locale: "en_NG",
     siteName: "Gida",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Gida — Find a home in Lagos, without the guesswork",
     description:
-      "A Lagos-first property marketplace preview with visible fees, clear listing status and honest freshness dates.",
+      "A Lagos-first property marketplace with visible fees, clear listing status and honest freshness dates.",
     images: [HERO_IMAGE],
   },
 };
@@ -50,22 +50,26 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "Gida",
-  url: SITE_URL,
+  url: siteUrl.origin,
   potentialAction: {
     "@type": "SearchAction",
-    target: `${SITE_URL}/listings?keyword={search_term_string}`,
+    target: `${siteUrl.origin}/listings?q={search_term_string}`,
     "query-input": "required name=search_term_string",
   },
 };
 
-const FEATURED_PROPERTIES = [...PREVIEW_PROPERTIES]
-  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  .slice(0, 3);
-const RENT_COUNT = PREVIEW_PROPERTIES.filter((property) => property.listingType === "RENT").length;
-const SALE_COUNT = PREVIEW_PROPERTIES.filter((property) => property.listingType === "SALE").length;
-const AREA_COUNT = new Set(PREVIEW_PROPERTIES.map((property) => property.city)).size;
+export const dynamic = "force-dynamic";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [featuredResult, rentResult, saleResult] = await Promise.all([
+    searchListings({ sort: "newest", size: 3 }).catch(() => null),
+    searchListings({ listingType: "RENT", size: 1 }).catch(() => null),
+    searchListings({ listingType: "SALE", size: 1 }).catch(() => null),
+  ]);
+  const featured = featuredResult?.items.map(toCardModel) ?? [];
+  const rentCount = rentResult?.total ?? 0;
+  const saleCount = saleResult?.total ?? 0;
+
   return (
     <div className="min-h-screen">
       <script
@@ -94,7 +98,7 @@ export default function HomePage() {
                 className="mb-5 w-fit px-3 py-1 text-sm gap-2 bg-white/95 text-neutral-900 hover:bg-white"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                Nigeria&apos;s property marketplace preview
+                Nigeria&apos;s property marketplace
               </Badge>
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-[3.3rem] leading-[1.05] font-semibold">
                 Find a home you won&apos;t have to second guess.
@@ -121,17 +125,23 @@ export default function HomePage() {
         <div className="container mx-auto px-4 sm:px-10 lg:px-14">
           <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
             <div>
-              <p className="mb-3 text-sm font-medium text-accent">Sample homes</p>
-              <h2 className="font-heading text-3xl font-semibold mb-2">The latest places added to the preview.</h2>
-              <p className="text-muted-foreground">Fresh sample listings from across Lagos, updated as the preview grows.</p>
+              <p className="mb-3 text-sm font-medium text-accent">Latest listings</p>
+              <h2 className="font-heading text-3xl font-semibold mb-2">The newest homes on Gida.</h2>
+              <p className="text-muted-foreground">Fresh listings from across Lagos, updated as new homes are published.</p>
             </div>
             <Link href="/listings" className="inline-flex items-center gap-1 text-sm font-medium hover:text-accent">
               See all listings <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid gap-5 md:grid-cols-3">
-            {FEATURED_PROPERTIES.map((property) => <ListingCard key={property.id} property={property} />)}
-          </div>
+          {featured.length > 0 ? (
+            <div className="grid gap-5 md:grid-cols-3">
+              {featured.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+              New homes will appear here as soon as they are published.
+            </p>
+          )}
         </div>
       </section>
 
@@ -166,7 +176,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <CategoryBrowser counts={{ RENT: RENT_COUNT, SALE: SALE_COUNT }} />
+          <CategoryBrowser counts={{ RENT: rentCount, SALE: saleCount }} />
         </div>
       </section>
 
@@ -177,7 +187,7 @@ export default function HomePage() {
               <p className="mb-3 text-sm font-medium text-accent">For landlords, agents and developers</p>
               <h2 className="font-heading text-3xl font-semibold mb-3">Have a property to list?</h2>
               <p className="max-w-md text-muted-foreground">
-                Preview how Gida will present your homes and developments — structured details, visible fees and a clear path to enquiries, all in one place.
+                Present your homes and developments with structured details, visible fees and a clear path to enquiries, all in one place.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button asChild className="rounded-xl">
@@ -248,26 +258,26 @@ export default function HomePage() {
                 <MapPin className="h-5 w-5 text-accent" aria-hidden="true" />
                 <div>
                   <p className="font-heading font-semibold">Lagos first</p>
-                  <p className="text-sm text-muted-foreground">Sample coverage in this preview</p>
+                  <p className="text-sm text-muted-foreground">Neighbourhoods we cover</p>
                 </div>
               </div>
               <dl className="mt-4 grid grid-cols-3 gap-2">
                 <div className="rounded-xl bg-secondary/60 p-3 text-center">
-                  <dd className="font-heading text-xl font-semibold">{RENT_COUNT}</dd>
-                  <dt className="text-xs text-muted-foreground">Sample rentals</dt>
+                  <dd className="font-heading text-xl font-semibold">{rentCount}</dd>
+                  <dt className="text-xs text-muted-foreground">For rent</dt>
                 </div>
                 <div className="rounded-xl bg-secondary/60 p-3 text-center">
-                  <dd className="font-heading text-xl font-semibold">{SALE_COUNT}</dd>
-                  <dt className="text-xs text-muted-foreground">Sample sales</dt>
+                  <dd className="font-heading text-xl font-semibold">{saleCount}</dd>
+                  <dt className="text-xs text-muted-foreground">For sale</dt>
                 </div>
                 <div className="rounded-xl bg-secondary/60 p-3 text-center">
-                  <dd className="font-heading text-xl font-semibold">{AREA_COUNT}</dd>
+                  <dd className="font-heading text-xl font-semibold">{LANDING_AREAS.length}</dd>
                   <dt className="text-xs text-muted-foreground">Lagos areas</dt>
                 </div>
               </dl>
               <div className="mt-4 flex flex-wrap gap-2">
-                {['Lekki', 'Victoria Island', 'Ikoyi', 'Ikeja GRA', 'Yaba', 'Gbagada'].map((area) => (
-                  <Link key={area} href={`/listings?city=${encodeURIComponent(area)}`}>
+                {LANDING_AREAS.map((area) => (
+                  <Link key={area} href={`/listings?q=${encodeURIComponent(area)}`}>
                     <Badge variant="outline" className="text-sm py-1.5 px-3 hover:bg-secondary rounded-full">
                       <MapPin className="h-3 w-3 mr-1" />{area}
                     </Badge>
@@ -275,7 +285,7 @@ export default function HomePage() {
                 ))}
               </div>
               <p className="mt-5 text-xs text-muted-foreground">
-                Coverage expands only after the live service is ready. This preview uses local sample data.
+                Coverage grows area by area as more advertisers join.
               </p>
             </div>
           </div>
@@ -287,7 +297,7 @@ export default function HomePage() {
           <div className="rounded-[2rem] bg-primary text-primary-foreground px-6 sm:px-10 py-14 text-center">
             <Building2 className="mx-auto mb-4 h-8 w-8 opacity-80" aria-hidden="true" />
             <h2 className="font-heading text-3xl font-semibold mb-3">Ready to explore?</h2>
-            <p className="opacity-80 max-w-xl mx-auto mb-7">Choose a path above, then explore the preview at your own pace.</p>
+            <p className="opacity-80 max-w-xl mx-auto mb-7">Choose a path above, then explore at your own pace.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" variant="secondary" className="rounded-xl" asChild>
                 <Link href="/listings">Explore listings</Link>

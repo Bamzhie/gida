@@ -19,7 +19,7 @@ import type { LucideIcon } from "lucide-react";
 export type CategoryCard = {
   label: string;
   type: string;
-  category?: "SHORTLET" | "NEWHOMES";
+  category?: "SHORTLET" | "NEW_HOMES";
   icon: LucideIcon;
 };
 
@@ -35,7 +35,7 @@ export type CategoryGroup = {
 export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     title: "For rent",
-    blurb: "Explore homes by listing type, compare disclosed costs and see when sample details were confirmed.",
+    blurb: "Explore homes by listing type, compare disclosed costs and see when details were last confirmed.",
     listingType: "RENT",
     badge: "Rent",
     icon: KeyRound,
@@ -58,7 +58,7 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
       { label: "Houses", type: "HOUSE", icon: Home },
       { label: "Land", type: "LAND", icon: LandPlot },
       { label: "Commercial", type: "COMMERCIAL", icon: Store },
-      { label: "New homes", type: "HOUSE", category: "NEWHOMES", icon: HardHat },
+      { label: "New homes", type: "HOUSE", category: "NEW_HOMES", icon: HardHat },
     ],
   },
 ];
@@ -67,22 +67,22 @@ export const TRUST_POINTS: { icon: LucideIcon; title: string; body: string }[] =
   {
     icon: ShieldCheck,
     title: "Clear status",
-    body: "Preview examples show what each check can mean instead of hiding it behind one vague badge.",
+    body: "Listings show availability and confirmation dates instead of hiding them behind one vague badge.",
   },
   {
     icon: Receipt,
     title: "Visible costs",
-    body: "Sample listing details make space for rent, agency fees, legal fees and deposits to appear together.",
+    body: "Listing details keep rent, agency fees, legal fees and deposits together in one breakdown.",
   },
   {
     icon: FileCheck,
-    title: "Illustrative freshness",
-    body: "Sample dates help show how the future listing page will communicate information age.",
+    title: "Honest freshness",
+    body: "Confirmation dates show how recently an advertiser stood behind the listing details.",
   },
   {
     icon: UserRound,
     title: "Human context",
-    body: "The agent directory is a preview of the profiles and enquiry paths planned for the service.",
+    body: "Every listing names the advertiser and, where disclosed, the agency behind it.",
   },
 ];
 
@@ -122,6 +122,8 @@ export const AREAS = [
   "Oniru",
 ];
 
+export const LANDING_AREAS = AREAS.slice(0, 6);
+
 export const AUDIENCE_PATHS: {
   icon: LucideIcon;
   title: string;
@@ -132,7 +134,7 @@ export const AUDIENCE_PATHS: {
   {
     icon: Search,
     title: "Looking for a place",
-    body: "Search sample homes, compare the visible costs and preview a local enquiry.",
+    body: "Search homes, compare the visible costs and preview a local enquiry.",
     href: "/listings",
     cta: "Explore listings",
   },

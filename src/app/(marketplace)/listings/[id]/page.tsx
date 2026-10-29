@@ -1,89 +1,125 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Bed, Bath, Building2, CalendarDays, Car, Check, MapPin, ShieldCheck } from "lucide-react";
-import { getPreviewProperty } from "@/lib/preview-listings";
-import { formatDate, formatListingStatus, formatPrice, formatPricePeriod } from "@/lib/utils";
+import { Bath, Bed, Building2, CalendarDays, Car, Check, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListingActions } from "@/components/marketplace/listing-actions";
 import { PropertyArtwork } from "@/components/marketplace/property-artwork";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { PropertyGallery } from "@/components/marketplace/property-gallery";
-import { PREVIEW_PROPERTIES } from "@/lib/preview-data";
+import { getAmenityLabels, getListing, getSimilarListings } from "@/lib/listings";
+import { COST_LABELS, formatArea, toCardModel, toDetailModel } from "@/lib/listing-view";
+import { formatDate, formatListingStatus, formatPrice, formatPricePeriod } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
 
+const getListingCached = cache(getListing);
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const property = getPreviewProperty(id);
-  if (!property) return { title: "Property not found" };
+  const listing = await getListingCached(id);
+  if (!listing) return { title: "Property not found" };
   return {
-    title: property.title,
-    description: property.description,
-    alternates: { canonical: `/listings/${property.id}` },
+    title: listing.title,
+    description: listing.description,
+    alternates: { canonical: `/listings/${listing.id}` },
   };
 }
 
-function CostRow({ label, amount, hint }: { label: string; amount?: number; hint?: string }) {
-  if (amount === undefined) return null;
-  return <div className="flex items-center justify-between border-b border-border py-2.5 text-sm"><span className="text-muted-foreground">{label}</span><span className="font-medium">{formatPrice(amount)}{hint && <span className="ml-1 text-xs font-normal text-muted-foreground">{hint}</span>}</span></div>;
+function CostRow({ label, amount, hint }: { label: string; amount: number; hint?: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border py-2.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">
+        {formatPrice(amount)}
+        {hint && <span className="ml-1 text-xs font-normal text-muted-foreground">{hint}</span>}
+      </span>
+    </div>
+  );
 }
 
 export default async function ListingDetailPage({ params }: Props) {
   const { id } = await params;
-  const property = getPreviewProperty(id);
-  if (!property) notFound();
+  const dto = await getListingCached(id);
+  if (!dto) notFound();
 
-  const isRent = property.listingType === "RENT";
-  const rent = isRent ? property.costs.rent ?? property.price : undefined;
-  const recurringCosts: { label: string; amount: number; hint?: string }[] = [];
-  if (rent !== undefined) recurringCosts.push({ label: "Rent", amount: rent, hint: formatPricePeriod(property) });
-  if (property.costs.serviceCharge !== undefined) recurringCosts.push({ label: "Service charge", amount: property.costs.serviceCharge, hint: isRent ? formatPricePeriod(property) : undefined });
-  const oneTimeCosts = [
-    { label: "Agency fee", amount: property.costs.agencyFee },
-    { label: "Legal fee", amount: property.costs.legalFee },
-    { label: "Caution / deposit", amount: property.costs.caution },
-    { label: "Other disclosed costs", amount: property.costs.other },
-  ].filter((cost): cost is { label: string; amount: number } => cost.amount !== undefined);
-  const disclosedTotal = (isRent ? 0 : property.price) + recurringCosts.reduce((sum, cost) => sum + cost.amount, 0) + oneTimeCosts.reduce((sum, cost) => sum + cost.amount, 0);
-  const inSameArea = PREVIEW_PROPERTIES.filter((candidate) => candidate.id !== property.id && candidate.city === property.city)
-    .sort((a, b) => Math.abs(a.price - property.price) - Math.abs(b.price - property.price));
-  const similarProperties = (inSameArea.length > 0 ? inSameArea : PREVIEW_PROPERTIES.filter((candidate) => candidate.id !== property.id && candidate.listingType === property.listingType && candidate.propertyType === property.propertyType)
-    .sort((a, b) => Math.abs(a.price - property.price) - Math.abs(b.price - property.price))).slice(0, 3);
+  const listing = toDetailModel(dto);
+  const [amenityLabels, similarDtos] = await Promise.all([
+    getAmenityLabels(),
+    getSimilarListings(id, 3).catch(() => []),
+  ]);
+  const similar = similarDtos.map(toCardModel);
+
+  const isRent = listing.listingType === "RENT";
+  const period = formatPricePeriod(listing);
+  const recurringCosts = listing.costs.filter((cost) => cost.type === "SERVICE_CHARGE");
+  const oneTimeCosts = listing.costs.filter((cost) => cost.type !== "SERVICE_CHARGE");
+  const disclosedTotal = listing.price + listing.costs.reduce((sum, cost) => sum + cost.amount, 0);
+
+  const photos = listing.media.filter((item) => item.kind === "PHOTO");
+  const otherMedia = listing.media.filter((item) => item.kind !== "PHOTO");
+  const place = [listing.addressLine, listing.area, listing.state].filter(Boolean).join(", ");
+  const area = listing.area ?? listing.state;
+  const size = formatArea(listing.sizeSqm);
+  const lotSize = formatArea(listing.lotSizeSqm);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link href={`/listings?city=${encodeURIComponent(property.city)}`} className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">← Back to {property.city} listings</Link>
+      <Link href={area ? `/listings?q=${encodeURIComponent(area)}` : "/listings"} className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+        ← Back to listings
+      </Link>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="mb-2 text-sm text-muted-foreground">Preview listing</p>
-          <h1 className="font-heading text-3xl font-semibold">{property.title}</h1>
-          <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{property.address}, {property.city}, {property.state}</p>
+          <h1 className="font-heading text-3xl font-semibold">{listing.title}</h1>
+          <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            {place || "Lagos"}
+          </p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-primary">{formatPrice(property.price)}</p>
-          <p className="text-sm text-muted-foreground">{formatPricePeriod(property)}</p>
+          <p className="text-2xl font-bold text-primary">{formatPrice(listing.price)}</p>
+          <p className="text-sm text-muted-foreground">{period}</p>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
         <div className="space-y-6">
           <Card className="overflow-hidden">
-            {property.images.length > 0 ? (
-              <PropertyGallery images={property.images} title={property.title} />
+            {photos.length > 0 ? (
+              <PropertyGallery images={photos} title={listing.title} />
             ) : (
               <div className="relative h-72 overflow-hidden bg-secondary sm:h-96">
-                <PropertyArtwork propertyType={property.propertyType} className="absolute inset-0 h-full w-full" />
+                <PropertyArtwork propertyType={listing.propertyType} className="absolute inset-0 h-full w-full" />
               </div>
             )}
             <CardContent className="pt-5">
               <div className="flex flex-wrap gap-2">
-                <Badge variant={property.listingType === "SALE" ? "default" : "secondary"}>For {property.listingType === "SALE" ? "Sale" : "Rent"}</Badge>
-                <Badge variant="outline">{property.propertyType}</Badge>
-                <Badge variant={property.status === "AVAILABLE" ? "success" : property.status === "PENDING" ? "warning" : "outline"}>{formatListingStatus(property.status)}</Badge>
+                <Badge variant={listing.listingType === "SALE" ? "default" : "secondary"}>
+                  For {listing.listingType === "SALE" ? "Sale" : "Rent"}
+                </Badge>
+                <Badge variant="outline">{listing.propertyType}</Badge>
+                <Badge variant={listing.availability === "AVAILABLE" ? "success" : listing.availability === "PENDING" ? "warning" : "outline"}>
+                  {formatListingStatus(listing.availability)}
+                </Badge>
               </div>
-              <p className="mt-5 text-base leading-7 text-muted-foreground">{property.description}</p>
+              <p className="mt-5 text-base leading-7 text-muted-foreground">{listing.description}</p>
+              {otherMedia.length > 0 && (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {otherMedia.map((item) => (
+                    <a
+                      key={item.url}
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full border border-input px-3 py-1 text-xs hover:bg-secondary"
+                    >
+                      {item.kind === "VIDEO" ? "Watch video" : "Floor plan"}
+                    </a>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -91,16 +127,37 @@ export default async function ListingDetailPage({ params }: Props) {
             <CardContent className="pt-6">
               <h2 className="mb-5 text-xl font-semibold">Property details</h2>
               <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-                {property.bedrooms !== null && <div><Bed className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Bedrooms</p><p className="font-semibold">{property.bedrooms}</p></div>}
-                {property.bathrooms !== null && <div><Bath className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Bathrooms</p><p className="font-semibold">{property.bathrooms}</p></div>}
-                {property.sqft && <div><Building2 className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Size</p><p className="font-semibold">{property.sqft} sqft</p></div>}
-                {property.parking > 0 && <div><Car className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Parking</p><p className="font-semibold">{property.parking} space{property.parking === 1 ? "" : "s"}</p></div>}
+                {listing.bedrooms !== null && (
+                  <div><Bed className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Bedrooms</p><p className="font-semibold">{listing.bedrooms}</p></div>
+                )}
+                {listing.bathrooms !== null && (
+                  <div><Bath className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Bathrooms</p><p className="font-semibold">{listing.bathrooms}</p></div>
+                )}
+                {size && (
+                  <div><Building2 className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Size</p><p className="font-semibold">{size}</p></div>
+                )}
+                {listing.parking > 0 && (
+                  <div><Car className="mb-2 h-5 w-5 text-accent" /><p className="text-sm text-muted-foreground">Parking</p><p className="font-semibold">{listing.parking} space{listing.parking === 1 ? "" : "s"}</p></div>
+                )}
               </div>
-              {property.lotSize && <p className="mt-5 text-sm text-muted-foreground">Lot size: <span className="font-medium text-foreground">{property.lotSize}</span></p>}
+              {lotSize && (
+                <p className="mt-5 text-sm text-muted-foreground">Lot size: <span className="font-medium text-foreground">{lotSize}</span></p>
+              )}
+              {listing.yearBuilt !== null && (
+                <p className="mt-2 text-sm text-muted-foreground">Year built: <span className="font-medium text-foreground">{listing.yearBuilt}</span></p>
+              )}
               <div className="mt-6 border-t border-border pt-5">
                 <h3 className="mb-3 font-semibold">Amenities</h3>
-                <div className="flex flex-wrap gap-2">{property.amenities.map((amenity) => <Badge key={amenity} variant="secondary">{amenity}</Badge>)}</div>
-                <p className="mt-3 text-sm text-muted-foreground">Furnishing: {property.furnished ? "Furnished" : "Unfurnished"}</p>
+                {listing.amenities.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {listing.amenities.map((slug) => (
+                      <Badge key={slug} variant="secondary">{amenityLabels[slug] ?? slug}</Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">The advertiser has not listed amenities for this property.</p>
+                )}
+                <p className="mt-3 text-sm text-muted-foreground">Furnishing: {listing.furnished ? "Furnished" : "Unfurnished"}</p>
               </div>
             </CardContent>
           </Card>
@@ -109,15 +166,19 @@ export default async function ListingDetailPage({ params }: Props) {
         <div className="space-y-6">
           <Card>
             <CardContent className="pt-6">
-              <h2 className="mb-3 text-lg font-semibold">Advertiser</h2>
-              <p className="font-medium">{property.agentName}</p>
-              <ListingActions
-                propertyId={property.id}
-                propertyTitle={property.title}
-                agentName={property.agentName}
-                agentPhone={property.agentPhone}
-              />
-              <p className="mt-3 text-center text-xs text-muted-foreground">Contact actions are available as a local preview.</p>
+              <h2 className="mb-1 text-lg font-semibold">Advertiser</h2>
+              <p className="font-medium">{listing.advertiser.name}</p>
+              {listing.advertiser.agencyName && (
+                <p className="text-sm text-muted-foreground">{listing.advertiser.agencyName}</p>
+              )}
+              <div className="mt-4">
+                <ListingActions
+                  propertyId={listing.id}
+                  propertyTitle={listing.title}
+                  agentName={listing.advertiser.name}
+                  agentPhone={listing.advertiser.phone ?? undefined}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -128,17 +189,29 @@ export default async function ListingDetailPage({ params }: Props) {
               {isRent ? (
                 <>
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recurring</p>
-                  {recurringCosts.map((cost) => <CostRow key={cost.label} label={cost.label} amount={cost.amount} hint={cost.hint} />)}
+                  <CostRow label="Rent" amount={listing.price} hint={period} />
+                  {recurringCosts.map((cost) => (
+                    <CostRow key={cost.type} label={COST_LABELS[cost.type]} amount={cost.amount} />
+                  ))}
                 </>
-              ) : <CostRow label="Asking price" amount={property.price} />}
+              ) : (
+                <CostRow label="Asking price" amount={listing.price} />
+              )}
               {oneTimeCosts.length > 0 && (
                 <>
                   <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">One-time</p>
-                  {oneTimeCosts.map((cost) => <CostRow key={cost.label} label={cost.label} amount={cost.amount} />)}
+                  {oneTimeCosts.map((cost) => (
+                    <CostRow key={cost.type} label={COST_LABELS[cost.type]} amount={cost.amount} />
+                  ))}
                 </>
               )}
-              <div className="mt-3 flex items-center justify-between border-t-2 border-foreground pt-3 font-semibold"><span>{isRent ? "First year, as disclosed" : "Total disclosed"}</span><span>{formatPrice(disclosedTotal)}</span></div>
-              <p className="mt-2 text-xs text-muted-foreground">Includes only the amounts shown above. A caution or deposit is normally refundable, and this total may not cover every move-in cost.</p>
+              <div className="mt-3 flex items-center justify-between border-t-2 border-foreground pt-3 font-semibold">
+                <span>{isRent ? "First period, as disclosed" : "Total disclosed"}</span>
+                <span>{formatPrice(disclosedTotal)}</span>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Includes only the amounts shown above. A caution or deposit is normally refundable, and this total may not cover every move-in cost.
+              </p>
             </CardContent>
           </Card>
 
@@ -146,15 +219,39 @@ export default async function ListingDetailPage({ params }: Props) {
             <CardContent className="pt-6">
               <h2 className="mb-3 text-lg font-semibold">Listing information</h2>
               <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-muted-foreground" />Illustrative update date: {formatDate(property.updatedAt)}</div>
-                <div className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" />Illustrative last-confirmed date: {formatDate(property.confirmedAt)}</div>
-                <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-accent" />Preview verification example</div>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  Published {formatDate(listing.publishedAt ?? listing.createdAt)}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-accent" />
+                  {listing.confirmedAt ? `Last confirmed ${formatDate(listing.confirmedAt)}` : "Not yet confirmed by the advertiser"}
+                </div>
+                {listing.expiresAt && (
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                    Listed until {formatDate(listing.expiresAt)}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-      {similarProperties.length > 0 && <section className="mt-12" aria-labelledby="similar-homes-heading"><div className="mb-5"><h2 id="similar-homes-heading" className="font-heading text-2xl font-semibold">More homes to consider</h2><p className="mt-1 text-sm text-muted-foreground">{inSameArea.length > 0 ? `Other homes in ${property.city}` : "Similar homes from the preview"}</p></div><div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{similarProperties.map((candidate) => <ListingCard key={candidate.id} property={candidate} />)}</div></section>}
+
+      {similar.length > 0 && (
+        <section className="mt-12" aria-labelledby="similar-homes-heading">
+          <div className="mb-5">
+            <h2 id="similar-homes-heading" className="font-heading text-2xl font-semibold">More homes to consider</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {area ? `Other homes in ${area}` : "Other homes on Gida"}
+            </p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {similar.map((candidate) => <ListingCard key={candidate.id} listing={candidate} />)}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ export default function Footer() {
               <span>Gida</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              A Lagos-first property marketplace preview, with more of the country planned later.
+              A Lagos-first property marketplace, with more of the country planned later.
             </p>
           </div>
 
@@ -33,7 +33,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 Lagos
-                <span className="text-xs rounded-full bg-accent/15 text-accent px-2 py-0.5">Preview</span>
+                <span className="text-xs rounded-full bg-accent/15 text-accent px-2 py-0.5">Live</span>
               </li>
               <li className="flex items-center gap-2">
                 Abuja

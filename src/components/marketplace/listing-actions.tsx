@@ -38,7 +38,7 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
     const next = saveFavorite(propertyId);
     const isSaved = next.includes(propertyId);
     setSaved(isSaved);
-    toast.success(isSaved ? "Property saved in this browser preview." : "Removed from saved properties.");
+    toast.success(isSaved ? "Property saved in this browser." : "Removed from saved properties.");
   }
 
   async function shareProperty() {
@@ -93,11 +93,11 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
       contact: contact.trim(),
       message: message.trim(),
     });
-    setConfirmation("Saved in this browser preview. No message has been sent.");
+    setConfirmation("Saved in this browser. No message has been sent.");
     setName("");
     setContact("");
     setMessage("");
-    toast.success("Preview enquiry saved locally.");
+    toast.success("Enquiry saved locally.");
   }
 
   const actionLabel = enquiryAction === "viewing" ? "Request a viewing" : "Contact advertiser";
@@ -121,7 +121,7 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
       </div>
       {agentPhone && (
         <p className="flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-          <Phone className="h-4 w-4" /> Demo advertiser number: {agentPhone}
+          <Phone className="h-4 w-4" /> Advertiser phone: {agentPhone}
         </p>
       )}
       <Button type="button" onClick={() => openEnquiry("contact")} className="w-full rounded-xl" aria-expanded={enquiryAction === "contact"}>
@@ -131,15 +131,15 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
         Request a viewing
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        Preview only — this does not contact or notify the advertiser. Use synthetic contact details.
+        Enquiries are saved in this browser only. They are not delivered to the advertiser yet.
       </p>
       {enquiryAction !== null && (
         <Card className="border-accent/30 bg-secondary/20">
           <CardContent className="space-y-4 pt-6">
             <div>
-              <h3 className="font-semibold">{actionLabel} preview</h3>
+              <h3 className="font-semibold">{actionLabel}</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Compose a local preview for {agentName} about {propertyTitle}. Nothing is sent.
+                Compose a message to {agentName} about {propertyTitle}. It stays in this browser.
               </p>
             </div>
             {confirmation ? (
@@ -165,11 +165,11 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
                     placeholder={enquiryAction === "viewing" ? "When would you like to view this property?" : "What would you like to ask?"}
                   />
                 </div>
-                <Button type="submit" className="w-full rounded-xl">Save preview enquiry</Button>
+                <Button type="submit" className="w-full rounded-xl">Save enquiry</Button>
               </form>
             )}
             <Button type="button" variant="ghost" size="sm" onClick={closeEnquiry} className="w-full rounded-xl">
-              Close preview
+              Close
             </Button>
           </CardContent>
         </Card>

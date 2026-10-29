@@ -7,7 +7,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Contact us",
-  description: "How to reach the Gida team, and what you can do while the preview is running.",
+  description: "How to reach the Gida team, and what you can do today.",
 };
 
 export default function ContactPage() {
@@ -15,7 +15,7 @@ export default function ContactPage() {
     <MarketingPage
       eyebrow="Support"
       title="Contact us"
-      description="Gida is currently a public preview. We have deliberately not published a support address or phone number yet, because there is no team behind it to answer — here is what you can do in the meantime."
+      description="Gida is in an early public phase. We have deliberately not published a support address or phone number yet, because there is no team behind it to answer — here is what you can do in the meantime."
     >
       <MarketingSection
         eyebrow="Works today"
@@ -23,7 +23,7 @@ export default function ContactPage() {
       >
         <div className="max-w-3xl space-y-4 text-muted-foreground">
           <p>
-            Both of these are part of the preview now, and they are the same routes the live
+            Both of these work today, and they are the same routes the live
             service will use, so starting here means nothing is lost when the service opens.
           </p>
           <ul className="space-y-3">
@@ -34,7 +34,7 @@ export default function ContactPage() {
             </li>
             <li>
               <span className="font-medium text-foreground">Need an agent in a particular area? </span>
-              Browse the preview directory, filtered by the areas and specialities they cover.{" "}
+              Browse the agent directory, filtered by the areas and specialities they cover.{" "}
               <MarketingLink href="/agents">Find an agent</MarketingLink>
             </li>
             <li>
@@ -70,7 +70,7 @@ export default function ContactPage() {
       >
         <div className="max-w-3xl space-y-4 text-muted-foreground">
           <p>
-            If your question is about what this preview stores or what it may be relied on for,
+            If your question is about what Gida stores or what it may be relied on for,
             these two pages answer most of it.{" "}
             <MarketingLink href="/terms">Terms of service</MarketingLink> and{" "}
             <MarketingLink href="/privacy">Privacy policy</MarketingLink>.

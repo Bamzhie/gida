@@ -18,11 +18,11 @@ export default function TrustPage() {
       <MarketingSection
         eyebrow="Status, not reassurance"
         title="Make the distinction visible"
-        description="The current preview uses examples to show where a future listing might display advertiser checks, agency context, property visits, price confirmation and availability status."
+        description="A listing can display advertiser checks, agency context, property visits, price confirmation and availability status as separate pieces of information."
       >
         <TrustList />
         <p className="mt-5 text-sm text-muted-foreground">
-          These are illustrative examples. Live checks and verification services are not connected in this frontend phase.
+          The checks shown above are illustrative. Verification services are not connected yet.
         </p>
       </MarketingSection>
 
@@ -30,7 +30,7 @@ export default function TrustPage() {
         <div className="grid gap-5 md:grid-cols-3">
           {[
             ["Separate the claims", "A price confirmation, a property visit and an advertiser check are different pieces of information."],
-            ["Show the date", "A date beside a sample status helps a user understand how fresh the information is meant to be."],
+            ["Show the date", "A date beside a status helps a user understand how fresh that information is."],
             ["Allow unknowns", "It is better to say that a check is not available than to imply that it passed."],
           ].map(([title, body], index) => (
             <div key={title} className="rounded-2xl border border-border bg-card p-6">
@@ -47,10 +47,10 @@ export default function TrustPage() {
       <MarketingSection eyebrow="See the status in context" title="A listing should explain itself">
         <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
           <p className="max-w-2xl text-muted-foreground">
-            The sample detail page combines a preview listing badge, illustrative dates, a cost breakdown, amenities and advertiser information. The goal is context, not a single green tick.
+            A listing page combines the price, disclosed costs, amenities and advertiser information with dated status. The goal is context, not a single green tick.
           </p>
           <div className="mt-6 flex flex-wrap gap-5">
-            <MarketingLink href="/listings/sample-1">Open a sample detail page</MarketingLink>
+            <MarketingLink href="/listings">Browse live listings</MarketingLink>
             <MarketingLink href="/cost-guide">Understand the cost view</MarketingLink>
           </div>
         </div>

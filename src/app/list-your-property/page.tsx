@@ -68,11 +68,11 @@ export default function ListYourPropertyPage() {
       <MarketingSection eyebrow="The next step" title="Explore the account flow">
         <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
           <Upload className="mb-5 h-8 w-8 text-accent" aria-hidden="true" />
-          <h2 className="font-heading text-2xl font-semibold">The listing experience is not connected to a backend yet.</h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">You can preview the account form now. Live authentication, verification, photo uploads, publishing and advertiser notifications remain future work.</p>
+          <h2 className="font-heading text-2xl font-semibold">Publishing a listing is not connected yet.</h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">You can create an account today. Verification, photo uploads, publishing and advertiser notifications remain future work.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/register" className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              Preview account flow <ArrowRight className="h-4 w-4" />
+              Create your account <ArrowRight className="h-4 w-4" />
             </Link>
             <MarketingLink href="/trust">See the trust model</MarketingLink>
           </div>

@@ -13,7 +13,7 @@ const COST_PARTS = [
   {
     icon: Receipt,
     title: "The asking amount",
-    body: "Rent or asking price is the anchor. The preview keeps it separate from the costs that may be added around it.",
+    body: "Rent or asking price is the anchor. Gida keeps it separate from the costs that may be added around it.",
   },
   {
     icon: Calculator,
@@ -23,7 +23,7 @@ const COST_PARTS = [
   {
     icon: FileText,
     title: "The context",
-    body: "Every sample amount is illustrative. The future service should make the source, date and status of each figure visible.",
+    body: "The figures in the worked example are illustrative. A live listing shows the source, date and status of each figure it discloses.",
   },
 ];
 
@@ -36,8 +36,8 @@ export default function CostGuidePage() {
     >
       <MarketingSection
         eyebrow="A worked example"
-        title="What the preview is trying to demonstrate"
-        description="This is an illustrative example, not a quote for a live property. It shows how separate fees can be presented without pretending that every fee is universal."
+        title="What the worked example demonstrates"
+        description="This is an illustrative example, not a quote for a live property. It shows how separate fees are presented without pretending that every fee is universal."
       >
         <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <CostBreakdown />
@@ -48,7 +48,7 @@ export default function CostGuidePage() {
             <p>
               On a future listing page, the distinction between disclosed figures, estimates and unavailable information should remain visible.
             </p>
-            <MarketingLink href="/listings">See the cost-aware listings preview</MarketingLink>
+            <MarketingLink href="/listings">Browse listings with disclosed costs</MarketingLink>
           </div>
         </div>
       </MarketingSection>
@@ -91,7 +91,7 @@ export default function CostGuidePage() {
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
         <h2 className="font-heading text-2xl font-semibold">Want to see the numbers in context?</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          The sample listing details show how a cost breakdown sits alongside property facts, amenities and advertiser information.
+          Listing details show how a cost breakdown sits alongside property facts, amenities and advertiser information.
         </p>
         <Link href="/listings" className="mt-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium text-primary hover:text-accent">
           Explore listings <ArrowRight className="h-4 w-4" />

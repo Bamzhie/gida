@@ -23,7 +23,7 @@ export function HeroSearch() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const params = new URLSearchParams();
-    if (location.trim()) params.set("city", location.trim());
+    if (location.trim()) params.set("q", location.trim());
     if (mode === "rent") params.set("listingType", "RENT");
     if (mode === "buy") params.set("listingType", "SALE");
     if (mode === "shortlet") {

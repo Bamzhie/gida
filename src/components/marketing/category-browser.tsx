@@ -19,7 +19,7 @@ export function CategoryBrowser({ counts }: { counts: Record<ListingType, number
 
   const group = CATEGORY_GROUPS.find((g) => g.listingType === listingType) ?? CATEGORY_GROUPS[0];
   const caption = listingType === "RENT" ? "For rent" : "For sale";
-  const noun = listingType === "RENT" ? "sample rentals" : "sample sales";
+  const noun = listingType === "RENT" ? "rentals" : "homes for sale";
 
   return (
     <div>

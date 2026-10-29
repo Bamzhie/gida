@@ -5,7 +5,7 @@ const ITEMS: { label: string; when: string; done: boolean }[] = [
   { label: "Agency registration example", when: "Illustrative date", done: true },
   { label: "Property visit example", when: "Illustrative date", done: true },
   { label: "Price confirmation example", when: "Illustrative date", done: true },
-  { label: "Availability confirmation", when: "Preview data", done: false },
+  { label: "Availability confirmation", when: "Not connected", done: false },
 ];
 
 export function TrustList() {

@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: {
-    default: "Gida marketplace preview",
+    default: "Gida marketplace",
     template: "%s | Gida",
   },
   description:
-    "Explore a Lagos-first property marketplace preview with illustrative listings, local search, saved properties and enquiry flows.",
+    "Search Lagos homes for rent or sale, filter by area and budget, and compare the disclosed costs on every listing.",
 };
 
 export default function MarketplaceLayout({ children }: { children: ReactNode }) {

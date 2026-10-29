@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   metadataBase: siteUrl,
   title: "Gida - A home in Nigeria, found the honest way",
   description:
-    "Gida is a Lagos-first property marketplace preview. It uses illustrative local listings, and every fee shown is part of the sample experience.",
+    "Gida is a Lagos-first property marketplace. Search Lagos homes, compare the full cost of moving in, and contact the advertiser directly.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

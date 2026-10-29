@@ -11,21 +11,21 @@ export default function TermsPage() {
     <MarketingPage
       eyebrow="Legal"
       title="Terms of service"
-      description="Gida is currently a public preview, so this page is a placeholder rather than the final legal copy. The full terms will be published before the live service launches."
+      description="Gida is in an early public phase, so this page is a placeholder rather than the final legal copy. The full terms will be published before the live service launches."
     >
       <MarketingSection
         eyebrow="What applies today"
-        title="Preview usage"
+        title="Early access usage"
       >
         <div className="max-w-3xl space-y-4 text-muted-foreground">
           <p>
-            The listings, prices, fees, agents and verification details shown anywhere on this site are illustrative sample
-            data. They are provided so you can explore how the product is meant to work, and they must not be relied on as
-            real property, pricing or availability information.
+            The listings, prices, fees, agents and verification details on this site come from demo records. They are
+            illustrative, and they must not be relied on as real property, pricing or availability information.
           </p>
           <p>
-            Sample enquiries, viewing requests, property requests and saved items are stored in your own browser only. No
-            account created in this preview leads to a live conversation with a landlord, agent or developer.
+            Enquiries, viewing requests, property requests and saved items are stored in your own browser only and are not
+            delivered to an advertiser. Creating an account does not lead to a live conversation with a landlord, agent or
+            developer.
           </p>
         </div>
       </MarketingSection>

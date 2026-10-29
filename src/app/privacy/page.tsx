@@ -11,25 +11,25 @@ export default function PrivacyPage() {
     <MarketingPage
       eyebrow="Legal"
       title="Privacy policy"
-      description="Gida is currently a public preview, so this page describes what the preview stores today and what the live service will commit to, rather than the final policy."
+      description="Gida is in an early public phase, so this page describes what Gida stores today and what the live service will commit to, rather than the final policy."
     >
       <MarketingSection
         eyebrow="What happens today"
-        title="This preview stores very little"
+        title="What Gida stores today"
       >
         <div className="max-w-3xl space-y-4 text-muted-foreground">
           <p>
-            The preview runs on local sample data. Saved properties, property requests, enquiries and viewing requests that
-            you create here are kept only in your own browser and never leave your device. No sample action is shared with
-            any landlord, agent or other user.
+            Listings come from demo records in the Gida database. Saved properties, property requests, enquiries and viewing
+            requests that you create here are kept only in your own browser and never leave your device. No enquiry or
+            request is shared with any landlord, agent or other user.
           </p>
           <p>
-            Account forms are the exception. When you submit the sign-up or sign-in form, the name, email address, phone
-            number and password you enter are sent to the Gida server. Creating an account in the preview does not start a
-            live listing, enquiry or agent relationship.
+            Accounts are the part that leaves your browser. When you sign up, the name, email address, phone number and
+            password you enter are stored on the Gida server so you can sign in again. Creating an account does not start a
+            listing, enquiry or agent relationship.
           </p>
           <p>
-            Like most websites, the preview may receive standard technical information such as your IP address and browser
+            Like most websites, the service may receive standard technical information such as your IP address and browser
             type while pages load.
           </p>
         </div>
