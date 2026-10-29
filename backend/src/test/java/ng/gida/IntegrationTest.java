@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -40,5 +41,25 @@ public abstract class IntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return JsonPath.read(body, "$.accessToken");
+    }
+
+    protected UUID createListing(String token, String locationSlug) throws Exception {
+        return createListingFromJson(token, ng.gida.support.ListingFixtures.rent(locationSlug));
+    }
+
+    protected UUID createListingFromJson(String token, String json) throws Exception {
+        String body = mvc.perform(post("/api/v1/listings")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return UUID.fromString(JsonPath.read(body, "$.id"));
+    }
+
+    protected void publishListing(String token, UUID listingId) throws Exception {
+        mvc.perform(post("/api/v1/listings/{id}/publish", listingId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
     }
 }

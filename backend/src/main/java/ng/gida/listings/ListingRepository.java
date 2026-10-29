@@ -2,6 +2,10 @@ package ng.gida.listings;
 
 import java.math.BigDecimal;
 import java.sql.Types;
+import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import ng.gida.listings.CreateListingRequest.MediaInput;
@@ -77,6 +81,84 @@ public class ListingRepository {
         jdbc.sql("DELETE FROM listing_media WHERE listing_id = :listingId")
                 .param("listingId", listingId)
                 .update();
+    }
+
+    public long countByAdvertiser(UUID advertiserId) {
+        return jdbc.sql("SELECT count(*) FROM listings WHERE advertiser_id = :advertiserId")
+                .param("advertiserId", advertiserId)
+                .query(Long.class)
+                .single();
+    }
+
+    public void update(UUID listingId, PatchListingRequest request, PricePeriod period) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        StringBuilder sql = new StringBuilder("UPDATE listings SET updated_at = now()");
+        if (request.title() != null) {
+            sql.append(", title = :title");
+            params.put("title", request.title());
+        }
+        if (request.description() != null) {
+            sql.append(", description = :description");
+            params.put("description", request.description());
+        }
+        if (request.price() != null) {
+            sql.append(", price = :price");
+            params.put("price", request.price());
+        }
+        if (period != null) {
+            sql.append(", price_period = :pricePeriod");
+            params.put("pricePeriod", period.name());
+        }
+        if (request.availability() != null) {
+            sql.append(", availability = :availability");
+            params.put("availability", request.availability().name());
+        }
+        sql.append(" WHERE id = :id");
+        params.put("id", listingId);
+        jdbc.sql(sql.toString()).params(params).update();
+    }
+
+    public void publish(UUID listingId) {
+        jdbc.sql("""
+                        UPDATE listings
+                        SET lifecycle = 'PUBLISHED', published_at = now(), updated_at = now()
+                        WHERE id = :id
+                        """)
+                .param("id", listingId)
+                .update();
+    }
+
+    public void pause(UUID listingId) {
+        jdbc.sql("UPDATE listings SET lifecycle = 'PAUSED', updated_at = now() WHERE id = :id")
+                .param("id", listingId)
+                .update();
+    }
+
+    public List<OwnerListingDto> findByAdvertiser(UUID advertiserId, int limit, int offset) {
+        return jdbc.sql("""
+                        SELECT id, title, lifecycle, availability, price, price_period,
+                               created_at, published_at
+                        FROM listings
+                        WHERE advertiser_id = :advertiserId
+                        ORDER BY created_at DESC, id
+                        LIMIT :limit OFFSET :offset
+                        """)
+                .param("advertiserId", advertiserId)
+                .param("limit", limit)
+                .param("offset", offset)
+                .query((rs, index) -> {
+                    OffsetDateTime publishedAt = rs.getObject("published_at", OffsetDateTime.class);
+                    return new OwnerListingDto(
+                            rs.getObject("id", UUID.class),
+                            rs.getString("title"),
+                            rs.getString("lifecycle"),
+                            rs.getString("availability"),
+                            rs.getBigDecimal("price"),
+                            rs.getString("price_period"),
+                            rs.getObject("created_at", OffsetDateTime.class).toInstant(),
+                            publishedAt == null ? null : publishedAt.toInstant());
+                })
+                .list();
     }
 
     public record ListingRow(UUID id, UUID propertyId, UUID advertiserId, String listingType,

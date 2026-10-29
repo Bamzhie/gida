@@ -2,13 +2,19 @@ package ng.gida.listings;
 
 import jakarta.validation.Valid;
 import java.util.UUID;
+import ng.gida.shared.PageResponse;
+import ng.gida.shared.Paging;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,5 +33,39 @@ public class AdvertiserController {
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ListingCreated create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateListingRequest request) {
         return listingService.create(UUID.fromString(jwt.getSubject()), request);
+    }
+
+    @PatchMapping("/listings/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public void patch(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,
+                      @Valid @RequestBody PatchListingRequest request) {
+        listingService.patch(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id, request);
+    }
+
+    @PostMapping("/listings/{id}/publish")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public void publish(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        listingService.publish(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
+    }
+
+    @PostMapping("/listings/{id}/pause")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public void pause(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        listingService.pause(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
+    }
+
+    @GetMapping("/me/listings")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public PageResponse<OwnerListingDto> mine(@AuthenticationPrincipal Jwt jwt,
+                                              @RequestParam(required = false) Integer page,
+                                              @RequestParam(required = false) Integer size) {
+        return listingService.ownListings(UUID.fromString(jwt.getSubject()), Paging.of(page, size));
+    }
+
+    private static boolean isAdmin(Jwt jwt) {
+        return "ADMIN".equals(jwt.getClaimAsString("role"));
     }
 }

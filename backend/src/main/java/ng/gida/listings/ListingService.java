@@ -9,9 +9,12 @@ import java.util.Set;
 import java.util.UUID;
 import ng.gida.listings.CreateListingRequest.CostInput;
 import ng.gida.listings.CreateListingRequest.MediaInput;
+import ng.gida.listings.ListingRepository.ListingRow;
 import ng.gida.locations.LocationRepository;
 import ng.gida.properties.PropertyRepository;
 import ng.gida.shared.ApiException;
+import ng.gida.shared.PageResponse;
+import ng.gida.shared.Paging;
 import ng.gida.shared.Vocabulary.CostType;
 import ng.gida.shared.Vocabulary.ListingCategory;
 import ng.gida.shared.Vocabulary.ListingType;
@@ -115,5 +118,77 @@ public class ListingService {
         for (MediaInput entry : media) {
             listings.insertMedia(listingId, entry, index++);
         }
+    }
+
+    @Transactional
+    public void patch(UUID actorId, boolean admin, UUID listingId, PatchListingRequest request) {
+        ListingRow row = ownedRow(actorId, admin, listingId);
+        if (!"DRAFT".equals(row.lifecycle())
+                && (request.property() != null || request.costs() != null || request.media() != null)) {
+            throw new ApiException(HttpStatus.CONFLICT, "property_locked",
+                    "Property facts, costs and media can only change while the listing is a draft");
+        }
+        PricePeriod period = request.pricePeriod() == null ? row.pricePeriod() : request.pricePeriod();
+        validatePricePeriod(ListingType.valueOf(row.listingType()), period);
+
+        listings.update(listingId, request, request.pricePeriod());
+
+        if (request.property() != null) {
+            validateCoordinates(request.property().latitude(), request.property().longitude());
+            UUID locationId = resolveLocation(request.property().locationSlug());
+            Map<String, UUID> amenityIds = resolveAmenities(request.property().amenities());
+            properties.update(row.propertyId(), request.property(), locationId);
+            properties.replaceAmenities(row.propertyId(), amenityIds.values());
+        }
+        if (request.costs() != null) {
+            List<CostInput> costs = validateCosts(request.costs());
+            listings.deleteCosts(listingId);
+            costs.forEach(cost -> listings.insertCost(listingId, cost.type(), cost.amount(), cost.note()));
+        }
+        if (request.media() != null) {
+            List<MediaInput> media = validateMedia(request.media());
+            listings.deleteMedia(listingId);
+            insertMedia(listingId, media);
+        }
+    }
+
+    @Transactional
+    public void publish(UUID actorId, boolean admin, UUID listingId) {
+        ListingRow row = ownedRow(actorId, admin, listingId);
+        if (!"DRAFT".equals(row.lifecycle()) && !"PAUSED".equals(row.lifecycle())) {
+            throw invalidTransition(row.lifecycle(), "PUBLISHED");
+        }
+        listings.publish(listingId);
+    }
+
+    @Transactional
+    public void pause(UUID actorId, boolean admin, UUID listingId) {
+        ListingRow row = ownedRow(actorId, admin, listingId);
+        if (!"PUBLISHED".equals(row.lifecycle())) {
+            throw invalidTransition(row.lifecycle(), "PAUSED");
+        }
+        listings.pause(listingId);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<OwnerListingDto> ownListings(UUID advertiserId, Paging paging) {
+        List<OwnerListingDto> items = listings.findByAdvertiser(advertiserId, paging.size(), paging.offset());
+        long total = listings.countByAdvertiser(advertiserId);
+        return PageResponse.of(items, paging.page(), paging.size(), total);
+    }
+
+    ListingRow ownedRow(UUID actorId, boolean admin, UUID listingId) {
+        ListingRow row = listings.findForUpdate(listingId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "listing_not_found",
+                        "Listing not found"));
+        if (!admin && !row.advertiserId().equals(actorId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "not_owner", "You do not own this listing");
+        }
+        return row;
+    }
+
+    private static ApiException invalidTransition(String from, String to) {
+        return new ApiException(HttpStatus.CONFLICT, "invalid_lifecycle_transition",
+                "Cannot move a " + from + " listing to " + to);
     }
 }
