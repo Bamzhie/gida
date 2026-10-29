@@ -53,4 +53,21 @@ public class UserRepository {
                 .query(UUID.class)
                 .single();
     }
+
+    public java.util.Optional<ng.gida.auth.AuthUser> findAuthUser(UUID id) {
+        return jdbc.sql("""
+                        SELECT u.id, u.name, u.email, u.role, ap.agency_name
+                        FROM users u
+                        LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
+                        WHERE u.id = :id
+                        """)
+                .param("id", id)
+                .query((rs, index) -> new ng.gida.auth.AuthUser(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("name"),
+                        rs.getString("email"),
+                        rs.getString("role"),
+                        rs.getString("agency_name")))
+                .optional();
+    }
 }

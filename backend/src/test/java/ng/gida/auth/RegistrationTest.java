@@ -6,11 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ng.gida.IntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 
-// No SecurityConfig exists yet, so the default chain would answer these with 401/403.
-@AutoConfigureMockMvc(addFilters = false)
 class RegistrationTest extends IntegrationTest {
 
     @Test
