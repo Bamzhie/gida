@@ -10,17 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ProblemDetail } from "@/lib/api-types";
 
-const fieldMessage = (error: unknown): string => {
-  if (typeof error === "string") return error;
-  if (error && typeof error === "object") {
-    for (const value of Object.values(error)) {
-      const message = Array.isArray(value) ? value[0] : value;
-      if (typeof message === "string") return message;
-    }
+function messageFor(problem: ProblemDetail | null): string {
+  if (problem?.errors) {
+    const first = Object.values(problem.errors)[0];
+    if (first) return first;
   }
-  return "Registration failed. Please check your details and try again.";
-};
+  return problem?.detail ?? "Registration failed. Please check your details and try again.";
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -46,14 +44,14 @@ export default function RegisterPage() {
         body: JSON.stringify(data),
       });
 
-      const result = await res.json();
-
       if (!res.ok) {
-        toast.error(fieldMessage(result.error));
-      } else {
-        toast.success("Account created! Please sign in.");
-        router.push("/login");
+        const problem = (await res.json().catch(() => null)) as ProblemDetail | null;
+        toast.error(messageFor(problem));
+        return;
       }
+
+      toast.success("Account created. Sign in to continue.");
+      router.push("/login");
     } catch {
       toast.error("Could not reach the registration service. Please try again.");
     } finally {
@@ -70,7 +68,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold">Gida</span>
           </Link>
           <CardTitle>Create your account</CardTitle>
-          <CardDescription>Explore the account flow in this frontend preview.</CardDescription>
+          <CardDescription>Create your account to save listings and contact agents.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,7 +86,7 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" placeholder="Min. 6 characters" required />
+              <Input id="password" name="password" type="password" placeholder="Min. 8 characters" minLength={8} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">I am a</Label>

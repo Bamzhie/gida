@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ProblemDetail } from "@/lib/api-types";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,19 +21,25 @@ export default function LoginPage() {
 
     const formData = new FormData(e.currentTarget);
     try {
-      const result = await signIn("credentials", {
-        email: formData.get("email") as string,
-        password: formData.get("password") as string,
-        redirect: false,
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.get("email"),
+          password: formData.get("password"),
+        }),
       });
 
-      if (result?.error) {
-        toast.error("We couldn't sign you in. Check your details or try again later.");
-      } else {
-        toast.success("Welcome back!");
-        router.push("/dashboard");
-        router.refresh();
+      if (!res.ok) {
+        const problem = (await res.json().catch(() => null)) as ProblemDetail | null;
+        toast.error(problem?.detail ?? "We couldn't sign you in. Check your details or try again later.");
+        return;
       }
+
+      window.dispatchEvent(new Event("gida:auth-changed"));
+      toast.success("Welcome back!");
+      router.push("/dashboard");
+      router.refresh();
     } catch {
       toast.error("Could not reach the sign-in service. Please try again.");
     } finally {
@@ -61,6 +67,7 @@ export default function LoginPage() {
                 name="email"
                 type="email"
                 placeholder="you@example.com"
+                autoComplete="email"
                 required
               />
             </div>
@@ -71,6 +78,7 @@ export default function LoginPage() {
                 name="password"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="current-password"
                 required
               />
             </div>

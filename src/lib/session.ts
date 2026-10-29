@@ -1,23 +1,14 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "./auth";
+import { cookies } from "next/headers";
+import { apiGetAuthed } from "@/lib/api";
+import { ACCESS_COOKIE } from "@/lib/api-base";
+import type { AuthUser } from "@/lib/api-types";
 
-export async function getCurrentUser() {
-  const session = await getServerSession(authOptions);
-  return session?.user;
-}
-
-export async function requireAuth() {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Unauthorized");
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const store = await cookies();
+  if (!store.get(ACCESS_COOKIE)?.value) return null;
+  try {
+    return await apiGetAuthed<AuthUser>("/auth/me");
+  } catch {
+    return null;
   }
-  return user;
-}
-
-export async function requireAgent() {
-  const user = await requireAuth();
-  if (user.role !== "AGENT" && user.role !== "ADMIN") {
-    throw new Error("Forbidden");
-  }
-  return user;
 }

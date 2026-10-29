@@ -1,51 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
-import { z } from "zod";
+import { NextResponse, type NextRequest } from "next/server";
+import { originAllowed, problemResponse, springCall } from "@/lib/bff";
 
-const registerSchema = z.object({
-  name: z.string().min(2).max(100),
-  email: z.string().email(),
-  password: z.string().min(6).max(100),
-  phone: z.string().optional(),
-  role: z.enum(["USER", "AGENT"]).default("USER"),
-});
+type RegisterBody = {
+  name?: unknown;
+  email?: unknown;
+  password?: unknown;
+  phone?: unknown;
+  role?: unknown;
+};
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const result = registerSchema.safeParse(body);
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error.flatten().fieldErrors },
-        { status: 400 }
-      );
-    }
-
-    const { name, email, password, phone, role } = result.data;
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
-      );
-    }
-
-    const hashed = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
-      data: { name, email, password: hashed, phone, role },
-    });
-
-    return NextResponse.json(
-      { message: "Account created", userId: user.id },
-      { status: 201 }
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+export async function POST(request: NextRequest) {
+  if (!originAllowed(request)) {
+    return problemResponse(403, "origin_not_allowed", "This request did not come from the Gida app.");
   }
+
+  const body = (await request.json().catch(() => null)) as RegisterBody | null;
+  if (
+    typeof body?.name !== "string" ||
+    typeof body.email !== "string" ||
+    typeof body.password !== "string" ||
+    !body.name.trim() ||
+    !body.email.trim() ||
+    !body.password
+  ) {
+    return problemResponse(400, "validation_failed", "Name, email, and password are required.");
+  }
+
+  const result = await springCall<{ id: string; name: string; email: string; role: string }>("/auth/register", {
+    method: "POST",
+    body: {
+      name: body.name.trim(),
+      email: body.email.trim(),
+      password: body.password,
+      phone: typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : undefined,
+      role: body.role === "AGENT" ? "AGENT" : "USER",
+    },
+  });
+
+  if (!result.ok) {
+    return NextResponse.json(result.problem ?? { detail: "Registration failed." }, {
+      status: result.status,
+      headers: { "content-type": "application/problem+json" },
+    });
+  }
+  return NextResponse.json(result.data, { status: 201 });
 }

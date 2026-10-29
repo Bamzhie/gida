@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: {
-    default: "Account preview | Gida",
+    default: "Your account | Gida",
     template: "%s | Gida",
   },
   description:
-    "Preview the Gida account and listing flows. Authentication and server persistence are planned for a later backend phase.",
+    "Sign in to Gida or create an account to save homes and manage your enquiries.",
 };
 
 export default function AuthLayout({ children }: { children: ReactNode }) {

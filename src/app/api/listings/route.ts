@@ -1,86 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse, type NextRequest } from "next/server";
+import { springCall } from "@/lib/bff";
+import type { ListingSummaryDto, PageResponse } from "@/lib/api-types";
 
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "12");
-    const city = searchParams.get("city") || undefined;
-    const listingType = searchParams.get("listingType") || undefined;
-    const propertyType = searchParams.get("propertyType") || undefined;
-    const minPrice = searchParams.get("minPrice") ? parseInt(searchParams.get("minPrice")!) : undefined;
-    const maxPrice = searchParams.get("maxPrice") ? parseInt(searchParams.get("maxPrice")!) : undefined;
-    const bedrooms = searchParams.get("bedrooms") ? parseInt(searchParams.get("bedrooms")!) : undefined;
+const ALLOWED = new Set([
+  "q",
+  "location",
+  "ids",
+  "listingType",
+  "category",
+  "propertyType",
+  "availability",
+  "minPrice",
+  "maxPrice",
+  "bedrooms",
+  "bathrooms",
+  "furnished",
+  "amenity",
+  "bbox",
+  "polygon",
+  "sort",
+  "page",
+  "size",
+]);
 
-    const where: Record<string, unknown> = {};
-    if (city) where.city = { contains: city, mode: "insensitive" };
-    if (listingType) where.listingType = listingType;
-    if (propertyType) where.propertyType = propertyType;
-    if (minPrice || maxPrice) {
-      where.price = {};
-      if (minPrice) (where.price as Record<string, number>).gte = minPrice;
-      if (maxPrice) (where.price as Record<string, number>).lte = maxPrice;
-    }
-    if (bedrooms) where.bedrooms = { gte: bedrooms };
+export async function GET(request: NextRequest) {
+  const params = new URLSearchParams();
+  for (const [key, value] of request.nextUrl.searchParams) {
+    if (ALLOWED.has(key)) params.append(key, value);
+  }
 
-    const [properties, total] = await Promise.all([
-      prisma.property.findMany({
-        where,
-        include: {
-          images: { orderBy: { order: "asc" } },
-          amenities: true,
-          agent: { select: { id: true, name: true, image: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.property.count({ where }),
-    ]);
+  const query = params.toString();
+  const result = await springCall<PageResponse<ListingSummaryDto>>(
+    `/listings${query ? `?${query}` : ""}`,
+    { method: "GET" }
+  );
 
-    return NextResponse.json({
-      properties,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+  if (!result.ok) {
+    return NextResponse.json(result.problem ?? { detail: "Listings could not be loaded." }, {
+      status: result.status,
+      headers: { "content-type": "application/problem+json" },
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to fetch listings" },
-      { status: 500 }
-    );
   }
-}
-
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "AGENT" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  try {
-    const body = await req.json();
-    const property = await prisma.property.create({
-      data: {
-        ...body,
-        agentId: session.user.id,
-      },
-    });
-    return NextResponse.json(property, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to create listing" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(result.data);
 }
