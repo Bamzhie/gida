@@ -192,6 +192,27 @@ public class ListingSearchRepository {
         return PageResponse.of(items, params.page(), params.size(), total);
     }
 
+    public List<ListingSummaryDto> similar(UUID sourceId, String area, String propertyType,
+                                           String listingType, java.math.BigDecimal price, int limit) {
+        return jdbc.sql("SELECT * FROM (" + SUMMARY_SELECT + " WHERE " + VISIBLE + """
+                        ) s
+                        WHERE s.id <> :id
+                        ORDER BY (s.area IS NOT DISTINCT FROM :area) DESC,
+                                 (s.property_type = :propertyType AND s.listing_type = :listingType) DESC,
+                                 abs(s.price - :price) ASC,
+                                 s.id
+                        LIMIT :limit
+                        """)
+                .param("id", sourceId)
+                .param("area", area, java.sql.Types.VARCHAR)
+                .param("propertyType", propertyType)
+                .param("listingType", listingType)
+                .param("price", price)
+                .param("limit", limit)
+                .query(this::mapSummary)
+                .list();
+    }
+
     private static String orderBy(SearchParams params) {
         if ("relevance".equals(params.sort())) {
             return "ts_rank_cd(l.search_vector, websearch_to_tsquery('english', :q)) DESC,"
