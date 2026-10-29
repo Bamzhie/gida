@@ -16,6 +16,7 @@ import org.springframework.util.MultiValueMap;
 
 public record SearchParams(
         String location,
+        String q,
         List<UUID> ids,
         ListingType listingType,
         ListingCategory category,
@@ -27,9 +28,14 @@ public record SearchParams(
         Integer bathrooms,
         Boolean furnished,
         List<String> amenities,
+        BoundingBox bbox,
+        String polygon,
         String sort,
         int page,
         int size) {
+
+    public record BoundingBox(double minLng, double minLat, double maxLng, double maxLat) {
+    }
 
     private static final int MAX_IDS = 50;
     private static final Set<String> SORTS =
@@ -37,17 +43,21 @@ public record SearchParams(
 
     public static SearchParams parse(MultiValueMap<String, String> params) {
         Paging paging = Paging.of(integer(params, "page"), integer(params, "size"));
+        String q = single(params, "q");
+        if (q != null && q.length() > 200) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_filter", "q may hold at most 200 characters");
+        }
         String sort = single(params, "sort") == null ? "newest" : single(params, "sort");
         if (!SORTS.contains(sort)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_filter",
-                    "Unsupported sort '" + sort + "'");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_filter", "Unsupported sort '" + sort + "'");
         }
-        if ("relevance".equals(sort)) {
+        if ("relevance".equals(sort) && q == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "relevance_requires_keyword",
                     "sort=relevance requires a keyword");
         }
         return new SearchParams(
                 single(params, "location"),
+                q,
                 ids(params),
                 enumValue(params, "listingType", ListingType.class),
                 enumValue(params, "category", ListingCategory.class),
@@ -59,9 +69,43 @@ public record SearchParams(
                 integer(params, "bathrooms"),
                 bool(params, "furnished"),
                 amenities(params),
+                bbox(params),
+                GeoJson.polygon(single(params, "polygon")),
                 sort,
                 paging.page(),
                 paging.size());
+    }
+
+    private static BoundingBox bbox(MultiValueMap<String, String> params) {
+        String raw = single(params, "bbox");
+        if (raw == null) {
+            return null;
+        }
+        String[] parts = raw.split(",");
+        if (parts.length != 4) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_bbox",
+                    "bbox must be minLng,minLat,maxLng,maxLat");
+        }
+        double[] values = new double[4];
+        for (int index = 0; index < 4; index++) {
+            try {
+                values[index] = Double.parseDouble(parts[index].trim());
+            } catch (NumberFormatException ex) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_bbox", "bbox holds a non-numeric value");
+            }
+        }
+        double minLng = values[0];
+        double minLat = values[1];
+        double maxLng = values[2];
+        double maxLat = values[3];
+        if (minLng >= maxLng || minLat >= maxLat) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_bbox",
+                    "bbox must satisfy minLng < maxLng and minLat < maxLat");
+        }
+        if (minLng < -180 || maxLng > 180 || minLat < -90 || maxLat > 90) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_bbox", "bbox is outside WGS84 bounds");
+        }
+        return new BoundingBox(minLng, minLat, maxLng, maxLat);
     }
 
     private static String single(MultiValueMap<String, String> params, String key) {

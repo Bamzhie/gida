@@ -132,6 +132,41 @@ public class ListingSearchRepository {
                     """.formatted(name));
         }
 
+        if (params.q() != null) {
+            String like = "%" + params.q()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_") + "%";
+            binds.put("q", params.q());
+            binds.put("qLike", like);
+            StringBuilder keyword = new StringBuilder("(l.search_vector @@ websearch_to_tsquery('english', :q)")
+                    .append(" OR p.location_id IN (SELECT id FROM locations WHERE name ILIKE :qLike ESCAPE '\\')")
+                    .append(" OR p.address_line ILIKE :qLike ESCAPE '\\'");
+            List<String> typeMatches = PropertyTypeWords.matching(params.q());
+            if (!typeMatches.isEmpty()) {
+                keyword.append(" OR p.property_type IN (");
+                for (int index = 0; index < typeMatches.size(); index++) {
+                    String name = "type" + index;
+                    binds.put(name, typeMatches.get(index));
+                    keyword.append(index == 0 ? ":" : ", :").append(name);
+                }
+                keyword.append(")");
+            }
+            keyword.append(")");
+            predicates.add(keyword.toString());
+        }
+        if (params.bbox() != null) {
+            binds.put("minLng", params.bbox().minLng());
+            binds.put("minLat", params.bbox().minLat());
+            binds.put("maxLng", params.bbox().maxLng());
+            binds.put("maxLat", params.bbox().maxLat());
+            predicates.add("p.geom && ST_MakeEnvelope(:minLng, :minLat, :maxLng, :maxLat, 4326)");
+        }
+        if (params.polygon() != null) {
+            binds.put("polygon", params.polygon());
+            predicates.add("ST_Contains(ST_SetSRID(ST_GeomFromGeoJSON(:polygon), 4326), p.geom)");
+        }
+
         StringBuilder where = new StringBuilder(" WHERE ").append(VISIBLE);
         predicates.forEach(predicate -> where.append(" AND ").append(predicate));
 
@@ -149,7 +184,7 @@ public class ListingSearchRepository {
         binds.put("offset", (params.page() - 1) * params.size());
 
         List<ListingSummaryDto> items = jdbc.sql(scope + SUMMARY_SELECT + where
-                        + " ORDER BY " + orderBy(params.sort()) + " LIMIT :limit OFFSET :offset")
+                        + " ORDER BY " + orderBy(params) + " LIMIT :limit OFFSET :offset")
                 .params(binds)
                 .query(this::mapSummary)
                 .list();
@@ -157,8 +192,12 @@ public class ListingSearchRepository {
         return PageResponse.of(items, params.page(), params.size(), total);
     }
 
-    private static String orderBy(String sort) {
-        return switch (sort) {
+    private static String orderBy(SearchParams params) {
+        if ("relevance".equals(params.sort())) {
+            return "ts_rank_cd(l.search_vector, websearch_to_tsquery('english', :q)) DESC,"
+                    + " l.published_at DESC NULLS LAST, l.id";
+        }
+        return switch (params.sort()) {
             case "oldest" -> "l.published_at ASC NULLS LAST, l.id";
             case "price-asc" -> "l.price ASC, l.id";
             case "price-desc" -> "l.price DESC, l.id";
