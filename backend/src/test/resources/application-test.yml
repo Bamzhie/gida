@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/gida_test}
+    username: ${TEST_DB_USER:gida}
+    password: ${TEST_DB_PASSWORD:gida}
+  flyway:
+    locations: classpath:db/migration
+    clean-disabled: true
+
+gida:
+  jwt:
+    secret: test-only-secret-0123456789abcdef0123456789abcdef
+    issuer: gida
+    audience: gida-web

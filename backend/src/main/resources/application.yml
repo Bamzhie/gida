@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: gida-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/gida_dev}
+    username: ${DB_USER:gida}
+    password: ${DB_PASSWORD:gida}
+  flyway:
+    locations: classpath:db/migration
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+gida:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: gida
+    audience: gida-web
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
