@@ -2,6 +2,7 @@ package ng.gida.auth;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,6 +48,28 @@ class LoginTest extends IntegrationTest {
     @Test
     void meRequiresABearerToken() throws Exception {
         mvc.perform(get("/api/v1/auth/me")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void loginReportsTheSameProfileFieldsAsMe() throws Exception {
+        String token = registerAndLogin("agent@example.com", "AGENT");
+        mvc.perform(put("/api/v1/me/advertiser-profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"agencyName":"Harcourt Court Properties","bio":"Lagos homes","contactPhone":"0803 000 0001"}
+                                """))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"email":"agent@example.com","password":"long enough password"}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.role").value("AGENT"))
+                .andExpect(jsonPath("$.user.agencyName").value("Harcourt Court Properties"));
+
+        mvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(jsonPath("$.agencyName").value("Harcourt Court Properties"));
     }
 
     private void registerAgent() throws Exception {

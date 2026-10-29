@@ -50,10 +50,12 @@ public class AuthService {
             throw new ApiException(HttpStatus.FORBIDDEN, "account_suspended", "This account is suspended");
         }
         RefreshTokenService.Issued refresh = refreshTokens.issue(user.id());
+        AuthUser authUser = users.findAuthUser(user.id())
+                .orElseGet(() -> new AuthUser(user.id(), user.name(), user.email(), user.role(), null));
         return new LoginResponse(tokens.issueAccessToken(user.id(), user.role()),
                 TokenService.ACCESS_TTL.toSeconds(),
                 refresh.token(), RefreshTokenService.REFRESH_TTL.toSeconds(),
-                new AuthUser(user.id(), user.name(), user.email(), user.role(), null));
+                authUser);
     }
 
     public RefreshResponse refresh(String presented) {
