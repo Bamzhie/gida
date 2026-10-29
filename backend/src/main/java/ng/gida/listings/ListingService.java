@@ -1,0 +1,119 @@
+package ng.gida.listings;
+
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import ng.gida.listings.CreateListingRequest.CostInput;
+import ng.gida.listings.CreateListingRequest.MediaInput;
+import ng.gida.locations.LocationRepository;
+import ng.gida.properties.PropertyRepository;
+import ng.gida.shared.ApiException;
+import ng.gida.shared.Vocabulary.CostType;
+import ng.gida.shared.Vocabulary.ListingCategory;
+import ng.gida.shared.Vocabulary.ListingType;
+import ng.gida.shared.Vocabulary.PricePeriod;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ListingService {
+
+    private final LocationRepository locations;
+    private final PropertyRepository properties;
+    private final ListingRepository listings;
+
+    public ListingService(LocationRepository locations, PropertyRepository properties, ListingRepository listings) {
+        this.locations = locations;
+        this.properties = properties;
+        this.listings = listings;
+    }
+
+    @Transactional
+    public ListingCreated create(UUID advertiserId, CreateListingRequest request) {
+        validatePricePeriod(request.listingType(), request.pricePeriod());
+        validateCoordinates(request.property().latitude(), request.property().longitude());
+        UUID locationId = resolveLocation(request.property().locationSlug());
+        Map<String, UUID> amenityIds = resolveAmenities(request.property().amenities());
+        List<CostInput> costs = validateCosts(request.costs());
+        List<MediaInput> media = validateMedia(request.media());
+
+        UUID propertyId = properties.insert(request.property(), locationId);
+        properties.linkAmenities(propertyId, amenityIds.values());
+        UUID listingId = listings.insert(propertyId, advertiserId, request,
+                request.category() == null ? ListingCategory.STANDARD : request.category());
+        costs.forEach(cost -> listings.insertCost(listingId, cost.type(), cost.amount(), cost.note()));
+        insertMedia(listingId, media);
+        return new ListingCreated(listingId, "DRAFT");
+    }
+
+    UUID resolveLocation(String slug) {
+        return locations.findIdBySlug(slug)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "unknown_location",
+                        "No location exists with slug '" + slug + "'"));
+    }
+
+    Map<String, UUID> resolveAmenities(List<String> slugs) {
+        List<String> requested = slugs == null
+                ? List.of()
+                : new ArrayList<>(new LinkedHashSet<>(slugs));
+        Map<String, UUID> found = locations.findAmenityIds(requested);
+        List<String> unknown = requested.stream().filter(slug -> !found.containsKey(slug)).toList();
+        if (!unknown.isEmpty()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "unknown_amenity",
+                    "Unknown amenity slugs: " + String.join(", ", unknown));
+        }
+        return found;
+    }
+
+    List<CostInput> validateCosts(List<CostInput> costs) {
+        List<CostInput> resolved = costs == null ? List.of() : costs;
+        Set<CostType> seen = EnumSet.noneOf(CostType.class);
+        for (CostInput cost : resolved) {
+            if (!seen.add(cost.type())) {
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "duplicate_cost_type",
+                        "Cost type " + cost.type() + " appears more than once");
+            }
+        }
+        return resolved;
+    }
+
+    List<MediaInput> validateMedia(List<MediaInput> media) {
+        List<MediaInput> resolved = media == null ? List.of() : media;
+        if (resolved.size() > 20) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "too_many_media",
+                    "A listing may carry at most 20 media entries");
+        }
+        return resolved;
+    }
+
+    static void validateCoordinates(Double latitude, Double longitude) {
+        if ((latitude == null) != (longitude == null)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "incomplete_coordinates",
+                    "latitude and longitude must be supplied together");
+        }
+        if (latitude != null && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid_coordinates",
+                    "latitude must be between -90 and 90 and longitude between -180 and 180");
+        }
+    }
+
+    static void validatePricePeriod(ListingType type, PricePeriod period) {
+        boolean valid = type == ListingType.SALE ? period == null : period != null;
+        if (!valid) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid_price_period",
+                    "SALE listings must omit pricePeriod; RENT listings must supply it");
+        }
+    }
+
+    void insertMedia(UUID listingId, List<MediaInput> media) {
+        int index = 0;
+        for (MediaInput entry : media) {
+            listings.insertMedia(listingId, entry, index++);
+        }
+    }
+}
