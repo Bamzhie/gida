@@ -40,6 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Isolated worktrees and execution scratch
+/.worktrees/
+/.superpowers/
+
 # Private project docs and local agent config — never commit
 /docs/
 /.opencode/
