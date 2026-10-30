@@ -126,6 +126,12 @@ export type AmenityDto = {
   label: string;
 };
 
+export type AreaDto = {
+  slug: string;
+  name: string;
+  listingCount: number;
+};
+
 export type ProblemDetail = {
   type: string;
   title: string;
