@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class ProblemAdvice {
@@ -31,6 +32,11 @@ public class ProblemAdvice {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ProblemDetail onUnreadable(HttpMessageNotReadableException ex) {
         return problem(HttpStatus.BAD_REQUEST, "malformed_request", "Request body could not be parsed");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ProblemDetail onTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid_filter", "'" + ex.getValue() + "' is not a valid id");
     }
 
     private ProblemDetail problem(HttpStatus status, String code, String detail) {

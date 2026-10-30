@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import ng.gida.shared.PageResponse;
+import ng.gida.shared.Paging;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -211,6 +212,28 @@ public class ListingSearchRepository {
                 .param("limit", limit)
                 .query(this::mapSummary)
                 .list();
+    }
+
+    public PageResponse<ListingSummaryDto> favorites(UUID userId, Paging paging) {
+        String join = " JOIN favorites f ON f.listing_id = l.id AND f.user_id = :userId ";
+        long total = jdbc.sql("""
+                        SELECT count(*)
+                        FROM listings l
+                        JOIN properties p ON p.id = l.property_id
+                        """ + join + " WHERE " + VISIBLE)
+                .param("userId", userId)
+                .query(Long.class)
+                .single();
+
+        List<ListingSummaryDto> items = jdbc.sql(SUMMARY_SELECT + join + " WHERE " + VISIBLE
+                        + " ORDER BY f.created_at DESC, f.id LIMIT :limit OFFSET :offset")
+                .param("userId", userId)
+                .param("limit", paging.size())
+                .param("offset", paging.offset())
+                .query(this::mapSummary)
+                .list();
+
+        return PageResponse.of(items, paging.page(), paging.size(), total);
     }
 
     private static String orderBy(SearchParams params) {
