@@ -10,8 +10,11 @@ import { PropertyArtwork } from "@/components/marketplace/property-artwork";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { PropertyGallery } from "@/components/marketplace/property-gallery";
 import { getAmenityLabels, getListing, getSimilarListings } from "@/lib/listings";
+import { getFavoriteIdSet } from "@/lib/favorites";
 import { COST_LABELS, formatArea, toCardModel, toDetailModel } from "@/lib/listing-view";
 import { formatDate, formatListingStatus, formatPrice, formatPricePeriod } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -46,9 +49,10 @@ export default async function ListingDetailPage({ params }: Props) {
   if (!dto) notFound();
 
   const listing = toDetailModel(dto);
-  const [amenityLabels, similarDtos] = await Promise.all([
+  const [amenityLabels, similarDtos, favorites] = await Promise.all([
     getAmenityLabels(),
     getSimilarListings(id, 3).catch(() => []),
+    getFavoriteIdSet(),
   ]);
   const similar = similarDtos.map(toCardModel);
 
@@ -173,10 +177,12 @@ export default async function ListingDetailPage({ params }: Props) {
               )}
               <div className="mt-4">
                 <ListingActions
+                  key={`${listing.id}-${favorites.has(id) ? "s" : "u"}`}
                   propertyId={listing.id}
                   propertyTitle={listing.title}
                   agentName={listing.advertiser.name}
                   agentPhone={listing.advertiser.phone ?? undefined}
+                  saved={favorites.has(id)}
                 />
               </div>
             </CardContent>
@@ -248,7 +254,13 @@ export default async function ListingDetailPage({ params }: Props) {
             </p>
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {similar.map((candidate) => <ListingCard key={candidate.id} listing={candidate} />)}
+            {similar.map((candidate) => (
+              <ListingCard
+                key={`${candidate.id}-${favorites.has(candidate.id) ? "s" : "u"}`}
+                listing={candidate}
+                saved={favorites.has(candidate.id)}
+              />
+            ))}
           </div>
         </section>
       )}

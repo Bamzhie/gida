@@ -38,7 +38,9 @@ export default function LoginPage() {
 
       window.dispatchEvent(new Event("gida:auth-changed"));
       toast.success("Welcome back!");
-      router.push("/dashboard");
+      const raw = new URL(window.location.search).searchParams.get("next");
+      const target = raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
+      router.push(target);
       router.refresh();
     } catch {
       toast.error("Could not reach the sign-in service. Please try again.");

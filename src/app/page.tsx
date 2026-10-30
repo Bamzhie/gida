@@ -8,6 +8,7 @@ import { HeroSearch } from "@/components/marketplace/hero-search";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { AUDIENCE_PATHS, LANDING_AREAS, LANDLORD_PATHS, TRUST_POINTS } from "@/lib/marketing-content";
 import { CategoryBrowser } from "@/components/marketing/category-browser";
+import { getFavoriteIdSet } from "@/lib/favorites";
 import { searchListings } from "@/lib/listings";
 import { toCardModel } from "@/lib/listing-view";
 import { siteUrl } from "@/lib/site";
@@ -61,10 +62,11 @@ const jsonLd = {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [featuredResult, rentResult, saleResult] = await Promise.all([
+  const [featuredResult, rentResult, saleResult, favorites] = await Promise.all([
     searchListings({ sort: "newest", size: 3 }).catch(() => null),
     searchListings({ listingType: "RENT", size: 1 }).catch(() => null),
     searchListings({ listingType: "SALE", size: 1 }).catch(() => null),
+    getFavoriteIdSet(),
   ]);
   const featured = featuredResult?.items.map(toCardModel) ?? [];
   const rentCount = rentResult?.total ?? 0;
@@ -135,7 +137,13 @@ export default async function HomePage() {
           </div>
           {featured.length > 0 ? (
             <div className="grid gap-5 md:grid-cols-3">
-              {featured.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+              {featured.map((listing) => (
+                <ListingCard
+                  key={`${listing.id}-${favorites.has(listing.id) ? "s" : "u"}`}
+                  listing={listing}
+                  saved={favorites.has(listing.id)}
+                />
+              ))}
             </div>
           ) : (
             <p className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">

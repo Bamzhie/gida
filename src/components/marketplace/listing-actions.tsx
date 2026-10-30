@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Heart, Mail, Phone, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,37 +9,48 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { getFavoriteIds, saveFavorite, savePreviewEnquiry, validatePreviewContact } from "@/lib/preview-storage";
+import { savePreviewEnquiry, validatePreviewContact } from "@/lib/preview-storage";
 
 type ListingActionsProps = {
   propertyId: string;
   propertyTitle: string;
   agentName: string;
   agentPhone?: string;
+  saved: boolean;
 };
 
-export function ListingActions({ propertyId, propertyTitle, agentName, agentPhone }: ListingActionsProps) {
-  const [saved, setSaved] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+export function ListingActions({ propertyId, propertyTitle, agentName, agentPhone, saved }: ListingActionsProps) {
+  const router = useRouter();
+  const [favorite, setFavorite] = useState(saved);
   const [enquiryAction, setEnquiryAction] = useState<"contact" | "viewing" | null>(null);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
   const [confirmation, setConfirmation] = useState("");
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSaved(getFavoriteIds().includes(propertyId));
-      setHydrated(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [propertyId]);
+  async function toggleFavorite() {
+    const next = !favorite;
+    setFavorite(next);
+    const response = await fetch(`/api/favorites/${propertyId}`, { method: next ? "PUT" : "DELETE" });
 
-  function toggleFavorite() {
-    const next = saveFavorite(propertyId);
-    const isSaved = next.includes(propertyId);
-    setSaved(isSaved);
-    toast.success(isSaved ? "Property saved in this browser." : "Removed from saved properties.");
+    if (response.status === 401) {
+      setFavorite(!next);
+      toast.error("Sign in to save properties.");
+      router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    if (!response.ok) {
+      setFavorite(!next);
+      const code = await response.json().then((body) => body?.type ?? "").catch(() => "");
+      toast.error(
+        code.endsWith("/listing_not_found")
+          ? "This property is no longer available."
+          : next ? "Could not save this property." : "Could not remove this property."
+      );
+      return;
+    }
+    toast.success(next ? "Property saved." : "Removed from saved properties.");
+    router.refresh();
   }
 
   async function shareProperty() {
@@ -109,11 +121,11 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
           type="button"
           variant="outline"
           onClick={toggleFavorite}
-          aria-pressed={saved}
+          aria-pressed={favorite}
           className="flex-1 rounded-xl"
         >
-          <Heart className={saved ? "fill-accent text-accent" : ""} />
-          {hydrated && saved ? "Saved" : "Save property"}
+          <Heart className={favorite ? "fill-accent text-accent" : ""} />
+          {favorite ? "Saved" : "Save property"}
         </Button>
         <Button type="button" variant="outline" onClick={shareProperty} className="flex-1 rounded-xl">
           <Share2 /> Share

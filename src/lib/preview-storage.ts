@@ -1,4 +1,3 @@
-const FAVORITES_KEY = "gida-preview-favorites";
 const REQUESTS_KEY = "gida-preview-requests";
 const ENQUIRIES_KEY = "gida-preview-enquiries";
 const AGENT_ENQUIRIES_KEY = "gida-preview-agent-enquiries";
@@ -66,17 +65,6 @@ function writeJson<T>(key: string, value: T): void {
   }
 }
 
-export function getFavoriteIds(): string[] {
-  return readJson<string[]>(FAVORITES_KEY, []);
-}
-
-export function saveFavorite(id: string): string[] {
-  const ids = getFavoriteIds();
-  const next = ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id];
-  writeJson(FAVORITES_KEY, next);
-  return next;
-}
-
 export function getPreviewRequests(): PreviewRequest[] {
   return readJson<PreviewRequest[]>(REQUESTS_KEY, []);
 }
@@ -126,18 +114,9 @@ export function savePreviewAgentEnquiry(
   return saved;
 }
 
-export function clearFavorites(): void {
-  if (!canUseStorage()) return;
-  try {
-    window.localStorage.removeItem(FAVORITES_KEY);
-  } catch {
-    // Ignore storage access failures.
-  }
-}
-
 export function clearPreviewData(): void {
   if (!canUseStorage()) return;
-  for (const key of [FAVORITES_KEY, REQUESTS_KEY, ENQUIRIES_KEY, AGENT_ENQUIRIES_KEY]) {
+  for (const key of [REQUESTS_KEY, ENQUIRIES_KEY, AGENT_ENQUIRIES_KEY]) {
     try {
       window.localStorage.removeItem(key);
     } catch {

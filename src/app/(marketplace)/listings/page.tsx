@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { ListingFilters } from "@/components/marketplace/listing-filters";
+import { getFavoriteIdSet } from "@/lib/favorites";
 import { getLocations, searchListings } from "@/lib/listings";
 import { toCardModel } from "@/lib/listing-view";
 import {
@@ -95,9 +96,10 @@ function headingFor(query: ListingQuery): string {
 
 export default async function ListingsPage({ searchParams }: { searchParams: SearchParams }) {
   const query = parseListingQuery(toUrlSearchParams(await searchParams));
-  const [result, locations] = await Promise.all([
+  const [result, locations, favorites] = await Promise.all([
     searchListings(toListingSearch(query)).catch(() => null),
     getLocations().catch(() => []),
+    getFavoriteIdSet(),
   ]);
 
   const listings = result?.items.map(toCardModel) ?? [];
@@ -201,7 +203,13 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {listings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+              {listings.map((listing) => (
+                <ListingCard
+                  key={`${listing.id}-${favorites.has(listing.id) ? "s" : "u"}`}
+                  listing={listing}
+                  saved={favorites.has(listing.id)}
+                />
+              ))}
             </div>
           )}
 

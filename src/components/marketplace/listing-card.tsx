@@ -1,31 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bath, Bed, Heart, MapPin, Maximize } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PropertyArtwork } from "@/components/marketplace/property-artwork";
 import { formatArea, listingPriceLabel, type ListingCardModel } from "@/lib/listing-view";
-import { getFavoriteIds, saveFavorite } from "@/lib/preview-storage";
 import { formatDate, formatListingStatus } from "@/lib/utils";
 
-export function ListingCard({ listing }: { listing: ListingCardModel }) {
-  const [favorite, setFavorite] = useState(false);
+type Props = { listing: ListingCardModel; saved: boolean };
 
-  useEffect(() => {
-    const sync = () => setFavorite(getFavoriteIds().includes(listing.id));
-    sync();
-    window.addEventListener("gida:favorites-changed", sync);
-    return () => window.removeEventListener("gida:favorites-changed", sync);
-  }, [listing.id]);
+export function ListingCard({ listing, saved }: Props) {
+  const router = useRouter();
+  const [favorite, setFavorite] = useState(saved);
 
-  function toggleFavorite() {
-    const next = saveFavorite(listing.id);
-    setFavorite(next.includes(listing.id));
-    window.dispatchEvent(new Event("gida:favorites-changed"));
+  async function toggleFavorite() {
+    const next = !favorite;
+    setFavorite(next);
+    const response = await fetch(`/api/favorites/${listing.id}`, { method: next ? "PUT" : "DELETE" });
+
+    if (response.status === 401) {
+      setFavorite(!next);
+      toast.error("Sign in to save properties.");
+      router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    if (!response.ok) {
+      setFavorite(!next);
+      const code = await response.json().then((body) => body?.type ?? "").catch(() => "");
+      toast.error(
+        code.endsWith("/listing_not_found")
+          ? "This property is no longer available."
+          : next ? "Could not save this property." : "Could not remove this property."
+      );
+      return;
+    }
+    toast.success(next ? "Property saved." : "Removed from saved properties.");
+    router.refresh();
   }
 
   const location = [listing.addressLine, listing.area, listing.state].filter(Boolean).join(", ");
