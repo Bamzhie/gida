@@ -32,7 +32,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login",
                                 "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings", "/api/v1/listings/*",
-                                "/api/v1/listings/*/similar", "/api/v1/locations", "/api/v1/amenities").permitAll()
+                                "/api/v1/listings/*/similar", "/api/v1/locations", "/api/v1/amenities",
+                                "/api/v1/advertisers", "/api/v1/areas", "/api/v1/content/*").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info",
                                 "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .anyRequest().authenticated())

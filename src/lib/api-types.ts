@@ -55,6 +55,15 @@ export type AdvertiserDto = {
   phone: string | null;
 };
 
+export type AdvertiserCardDto = {
+  id: string;
+  name: string;
+  agencyName: string | null;
+  bio: string | null;
+  phone: string | null;
+  listingCount: number;
+};
+
 export type ListingDetailDto = {
   id: string;
   title: string;
