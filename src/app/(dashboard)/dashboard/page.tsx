@@ -1,7 +1,13 @@
 import Link from "next/link";
-import { Building2, LogIn } from "lucide-react";
+import { Building2, Inbox, LogIn } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { apiGetAuthed } from "@/lib/api";
 import { getCurrentUser } from "@/lib/session";
+import { formatDate } from "@/lib/utils";
+import { isEmail } from "@/lib/validate";
+import type { EnquiryDto, PageResponse } from "@/lib/api-types";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +30,11 @@ export default async function DashboardPage() {
     );
   }
 
+  const isInboxVisible = user.role === "AGENT" || user.role === "ADMIN";
+  const inbox = isInboxVisible
+    ? (await apiGetAuthed<PageResponse<EnquiryDto>>("/me/enquiries", { size: 10 })).items
+    : [];
+
   return (
     <div className="container mx-auto px-4 py-16">
       <h1 className="font-heading text-2xl font-bold">Welcome back, {user.name}</h1>
@@ -36,6 +47,48 @@ export default async function DashboardPage() {
           <Link href="/listings">Browse listings</Link>
         </Button>
       </div>
+      {isInboxVisible && (
+        <Card className="mt-8 rounded-2xl">
+          <CardContent className="pt-6">
+            <h2 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold">
+              <Inbox className="h-4 w-4" /> Recent enquiries
+            </h2>
+            {inbox.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No enquiries yet.</p>
+            ) : (
+              <ul className="space-y-4">
+                {inbox.map((enquiry) => (
+                  <li key={enquiry.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={enquiry.action === "VIEWING" ? "secondary" : "outline"}>
+                        {enquiry.action === "VIEWING" ? "Viewing request" : "Enquiry"}
+                      </Badge>
+                      <span className="font-medium">{enquiry.name}</span>
+                      <a
+                        href={isEmail(enquiry.contact) ? `mailto:${enquiry.contact}` : `tel:${enquiry.contact}`}
+                        className="text-sm text-primary underline-offset-4 hover:underline"
+                      >
+                        {enquiry.contact}
+                      </a>
+                      <span className="ml-auto text-xs text-muted-foreground">{formatDate(enquiry.createdAt)}</span>
+                    </div>
+                    {enquiry.listingId ? (
+                      <Link href={`/listings/${enquiry.listingId}`} className="mt-1 block text-sm hover:underline">
+                        {enquiry.listingTitle}
+                      </Link>
+                    ) : (
+                      <p className="mt-1 text-sm text-muted-foreground">General enquiry</p>
+                    )}
+                    {enquiry.message && (
+                      <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">{enquiry.message}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -105,6 +105,20 @@ export type PageResponse<T> = {
   pages: number;
 };
 
+export type EnquiryCreatedDto = { id: string; createdAt: string };
+
+export type EnquiryDto = {
+  id: string;
+  action: "CONTACT" | "VIEWING";
+  name: string;
+  contact: string;
+  message: string | null;
+  listingId: string | null;
+  listingTitle: string | null;
+  advertiserId: string | null;
+  createdAt: string;
+};
+
 export type AuthUser = {
   id: string;
   name: string;

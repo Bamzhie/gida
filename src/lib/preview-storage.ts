@@ -1,5 +1,4 @@
 const REQUESTS_KEY = "gida-preview-requests";
-const ENQUIRIES_KEY = "gida-preview-enquiries";
 const AGENT_ENQUIRIES_KEY = "gida-preview-agent-enquiries";
 
 export type PreviewRequest = {
@@ -18,17 +17,6 @@ export type PreviewRequest = {
   notes: string;
   name: string;
   contact: string;
-  createdAt: string;
-};
-
-export type PreviewEnquiry = {
-  id: string;
-  propertyId: string;
-  propertyTitle: string;
-  action: "contact" | "viewing";
-  name: string;
-  contact: string;
-  message: string;
   createdAt: string;
 };
 
@@ -80,23 +68,6 @@ export function savePreviewRequest(request: Omit<PreviewRequest, "id" | "created
   return saved;
 }
 
-export function getPreviewEnquiries(): PreviewEnquiry[] {
-  return readJson<PreviewEnquiry[]>(ENQUIRIES_KEY, []);
-}
-
-export function savePreviewEnquiry(
-  request: Omit<PreviewEnquiry, "id" | "createdAt">
-): PreviewEnquiry {
-  const enquiries = getPreviewEnquiries();
-  const saved = {
-    ...request,
-    id: `enquiry-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
-  writeJson(ENQUIRIES_KEY, [saved, ...enquiries]);
-  return saved;
-}
-
 export function getPreviewAgentEnquiries(): PreviewAgentEnquiry[] {
   return readJson<PreviewAgentEnquiry[]>(AGENT_ENQUIRIES_KEY, []);
 }
@@ -116,31 +87,11 @@ export function savePreviewAgentEnquiry(
 
 export function clearPreviewData(): void {
   if (!canUseStorage()) return;
-  for (const key of [REQUESTS_KEY, ENQUIRIES_KEY, AGENT_ENQUIRIES_KEY]) {
+  for (const key of [REQUESTS_KEY, AGENT_ENQUIRIES_KEY]) {
     try {
       window.localStorage.removeItem(key);
     } catch {
       // Ignore storage access failures.
     }
   }
-}
-
-export function validatePreviewContact(value: string): boolean {
-  const contact = value.trim();
-  if (!contact) return false;
-  const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const phone = /^[+()\d\s-]{7,}$/;
-  return email.test(contact) || phone.test(contact);
-}
-
-export function validateBudgetRange(min: string, max: string): boolean {
-  const minimum = min.trim() === "" ? 0 : Number(min);
-  const maximum = max.trim() === "" ? Number.POSITIVE_INFINITY : Number(max);
-  return (
-    Number.isFinite(minimum) &&
-    !Number.isNaN(maximum) &&
-    minimum >= 0 &&
-    maximum >= 0 &&
-    minimum <= maximum
-  );
 }

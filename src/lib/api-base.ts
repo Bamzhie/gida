@@ -24,3 +24,10 @@ export async function readProblem(response: Response): Promise<ProblemDetail | n
     return null;
   }
 }
+
+export function problemCode(body: unknown): string {
+  if (body && typeof body === "object" && "type" in body && typeof (body as { type: unknown }).type === "string") {
+    return (body as { type: string }).type.split("/").pop() ?? "";
+  }
+  return "";
+}

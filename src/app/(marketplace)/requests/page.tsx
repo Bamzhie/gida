@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
-import { clearPreviewData, savePreviewRequest, validateBudgetRange, validatePreviewContact } from "@/lib/preview-storage";
+import { clearPreviewData, savePreviewRequest } from "@/lib/preview-storage";
+import { isValidBudgetRange, isValidContact } from "@/lib/validate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,8 +50,8 @@ export default function RequestsPage() {
     e.preventDefault();
     setConfirmation("");
     if (!title.trim() || !location.trim() || !name.trim() || !contact.trim()) { toast.error("Please fill in the request title, location, your name and contact."); return; }
-    if (!validatePreviewContact(contact)) { toast.error("Enter a valid email address or phone number."); return; }
-    if (!validateBudgetRange(minBudget, maxBudget)) { toast.error("Your maximum budget must be greater than or equal to your minimum budget."); return; }
+    if (!isValidContact(contact)) { toast.error("Enter a valid email address or phone number."); return; }
+    if (!isValidBudgetRange(minBudget, maxBudget)) { toast.error("Your maximum budget must be greater than or equal to your minimum budget."); return; }
     const saved = savePreviewRequest({ title: title.trim(), listingType, propertyType, location: location.trim(), minBudget, maxBudget, bedrooms, bathrooms, furnishing, amenities, availability, notes, name: name.trim(), contact: contact.trim() });
     setConfirmation(`Request ${saved.id} saved in this browser preview. No advertiser has received it.`);
     toast.success("Request saved locally. No advertiser has received it.");

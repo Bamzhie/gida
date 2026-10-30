@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { searchPreviewAgents } from "@/lib/preview-agents";
-import { savePreviewAgentEnquiry, validatePreviewContact } from "@/lib/preview-storage";
+import { savePreviewAgentEnquiry } from "@/lib/preview-storage";
+import { isValidContact } from "@/lib/validate";
 
 export default function AgentsPage() {
   const [query, setQuery] = useState("");
@@ -59,7 +60,7 @@ export default function AgentsPage() {
       toast.error("Add your name and contact before continuing.");
       return;
     }
-    if (!validatePreviewContact(contactDetail)) {
+    if (!isValidContact(contactDetail)) {
       toast.error("Enter a valid email address or phone number.");
       return;
     }

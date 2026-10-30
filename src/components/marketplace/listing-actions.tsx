@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, Mail, Phone, Share2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { savePreviewEnquiry, validatePreviewContact } from "@/lib/preview-storage";
+import { problemCode } from "@/lib/api-base";
+import { isValidContact } from "@/lib/validate";
 
 type ListingActionsProps = {
   propertyId: string;
@@ -21,6 +22,8 @@ type ListingActionsProps = {
 
 export function ListingActions({ propertyId, propertyTitle, agentName, agentPhone, saved }: ListingActionsProps) {
   const router = useRouter();
+  const honeypot = useRef("");
+  const [submitting, setSubmitting] = useState(false);
   const [favorite, setFavorite] = useState(saved);
   const [enquiryAction, setEnquiryAction] = useState<"contact" | "viewing" | null>(null);
   const [name, setName] = useState("");
@@ -86,30 +89,44 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
     setMessage("");
   }
 
-  function submitPreviewMessage(event: React.FormEvent<HTMLFormElement>) {
+  async function submitEnquiry(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (enquiryAction === null) return;
     if (!name.trim() || !contact.trim()) {
       toast.error("Add your name and contact before continuing.");
       return;
     }
-    if (!validatePreviewContact(contact)) {
+    if (!isValidContact(contact)) {
       toast.error("Enter a valid email address or phone number.");
       return;
     }
-    if (enquiryAction === null) return;
-    savePreviewEnquiry({
-      propertyId,
-      propertyTitle,
-      action: enquiryAction,
-      name: name.trim(),
-      contact: contact.trim(),
-      message: message.trim(),
+    setSubmitting(true);
+    const response = await fetch("/api/enquiries", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        listingId: propertyId,
+        action: enquiryAction === "viewing" ? "VIEWING" : "CONTACT",
+        name: name.trim(),
+        contact: contact.trim(),
+        message: message.trim() || null,
+        website: honeypot.current,
+      }),
     });
-    setConfirmation("Saved in this browser. No message has been sent.");
-    setName("");
-    setContact("");
-    setMessage("");
-    toast.success("Enquiry saved locally.");
+    setSubmitting(false);
+    if (!response.ok) {
+      const code = problemCode(await response.json().catch(() => null));
+      toast.error(
+        code === "duplicate_enquiry" ? "You have already sent this."
+        : code === "listing_not_found" ? "This property is no longer available."
+        : code === "validation_failed" ? "Check your name and contact details."
+        : "The enquiry could not be sent. Try again."
+      );
+      return;
+    }
+    setConfirmation("Sent. The advertiser sees it in their dashboard.");
+    setName(""); setContact(""); setMessage("");
+    toast.success("Enquiry sent to the advertiser.");
   }
 
   const actionLabel = enquiryAction === "viewing" ? "Request a viewing" : "Contact advertiser";
@@ -143,7 +160,7 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
         Request a viewing
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        Enquiries are saved in this browser only. They are not delivered to the advertiser yet.
+        The advertiser sees it in their dashboard.
       </p>
       {enquiryAction !== null && (
         <Card className="border-accent/30 bg-secondary/20">
@@ -151,7 +168,7 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
             <div>
               <h3 className="font-semibold">{actionLabel}</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Compose a message to {agentName} about {propertyTitle}. It stays in this browser.
+                Compose a message to {agentName} about {propertyTitle}. It goes to their dashboard.
               </p>
             </div>
             {confirmation ? (
@@ -159,7 +176,7 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
                 {confirmation}
               </p>
             ) : (
-              <form className="space-y-3" onSubmit={submitPreviewMessage}>
+              <form className="space-y-3" onSubmit={submitEnquiry}>
                 <div className="space-y-2">
                   <Label htmlFor="contact-name">Your name *</Label>
                   <Input id="contact-name" value={name} onChange={(event) => setName(event.target.value)} required autoComplete="name" />
@@ -177,7 +194,12 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
                     placeholder={enquiryAction === "viewing" ? "When would you like to view this property?" : "What would you like to ask?"}
                   />
                 </div>
-                <Button type="submit" className="w-full rounded-xl">Save enquiry</Button>
+                <div className="hidden" aria-hidden="true">
+                  <Label htmlFor="enquiry-website">Website</Label>
+                  <Input id="enquiry-website" name="website" tabIndex={-1} autoComplete="off"
+                         onChange={(event) => { honeypot.current = event.target.value; }} />
+                </div>
+                <Button type="submit" className="w-full rounded-xl" disabled={submitting}>Send enquiry</Button>
               </form>
             )}
             <Button type="button" variant="ghost" size="sm" onClick={closeEnquiry} className="w-full rounded-xl">
