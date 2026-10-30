@@ -48,7 +48,35 @@ next-env.d.ts
 # Private project docs and local agent config — never commit
 /docs/
 /.opencode/
+/.zcodeignore
 /CHANGE-TRACKER.md
 /UI-UX-REVIEW.md
 /design-system/
 /skills/
+
+# editors and IDEs
+/.vscode/
+/.idea/
+/.settings/
+/.classpath
+/.factorypath
+/.project
+/.apt_generated
+/.springBeans
+/.sts4-cache
+/nbproject/
+*.iml
+*.iws
+*.ipr
+
+# operating system junk
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+*~
+
+# build and test output
+/target/
+backend/target/
+/test-results/
+/playwright-report/
