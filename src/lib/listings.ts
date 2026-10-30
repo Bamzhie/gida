@@ -1,6 +1,5 @@
 import { ApiError, apiGet } from "@/lib/api";
 import type {
-  AdvertiserCardDto,
   AmenityDto,
   AreaDto,
   ListingDetailDto,
@@ -69,13 +68,6 @@ export async function getAmenities(): Promise<AmenityDto[]> {
 
 export async function getAreas(limit = 6): Promise<AreaDto[]> {
   return apiGet<AreaDto[]>("/areas", { limit });
-}
-
-export async function searchAdvertisers(
-  params: { q?: string; location?: string; page?: number; size?: number } = {},
-  revalidate?: number
-): Promise<PageResponse<AdvertiserCardDto>> {
-  return apiGet<PageResponse<AdvertiserCardDto>>("/advertisers", params, revalidate);
 }
 
 export async function getAmenityLabels(): Promise<Record<string, string>> {
