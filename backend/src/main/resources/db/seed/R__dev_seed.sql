@@ -1,3 +1,9 @@
+DELETE FROM favorites;
+DELETE FROM enquiries;
+DELETE FROM property_request_amenities;
+DELETE FROM property_requests;
+DELETE FROM content_items;
+DELETE FROM content_blocks;
 DELETE FROM refresh_tokens;
 DELETE FROM listing_costs;
 DELETE FROM listing_media;

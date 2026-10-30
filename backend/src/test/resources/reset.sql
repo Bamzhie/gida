@@ -1,4 +1,6 @@
-TRUNCATE refresh_tokens, listing_costs, listing_media, property_amenities, listings,
+TRUNCATE refresh_tokens, favorites, enquiries, property_request_amenities, property_requests,
+         content_items, content_blocks,
+         listing_costs, listing_media, property_amenities, listings,
          properties, advertiser_profiles, amenities, locations, users
     RESTART IDENTITY CASCADE;
 

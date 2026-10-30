@@ -54,6 +54,54 @@ class SchemaMigrationTest extends IntegrationTest {
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
+    @Test
+    void favoriteIsUniquePerUserAndListing() {
+        UUID userId = insertUser("agent@example.com", "AGENT");
+        UUID propertyId = insertProperty("lekki-phase-1");
+        UUID listingId = insertListing(userId, propertyId, "RENT", "YEAR");
+
+        jdbc.sql("INSERT INTO favorites (user_id, listing_id) VALUES (:user, :listing)")
+                .param("user", userId).param("listing", listingId).update();
+
+        assertThatThrownBy(() -> jdbc.sql("INSERT INTO favorites (user_id, listing_id) VALUES (:user, :listing)")
+                .param("user", userId).param("listing", listingId).update())
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void enquiryRequiresExactlyOneSubject() {
+        UUID userId = insertUser("agent@example.com", "AGENT");
+        UUID propertyId = insertProperty("lekki-phase-1");
+        UUID listingId = insertListing(userId, propertyId, "RENT", "YEAR");
+
+        assertThatThrownBy(() -> jdbc.sql("""
+                INSERT INTO enquiries (listing_id, advertiser_id, action, name, contact)
+                VALUES (:listing, :advertiser, 'CONTACT', 'Ada', 'ada@example.com')
+                """).param("listing", listingId).param("advertiser", userId).update())
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        assertThatThrownBy(() -> jdbc.sql("""
+                INSERT INTO enquiries (action, name, contact) VALUES ('CONTACT', 'Ada', 'ada@example.com')
+                """).update())
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void requestBudgetOrderIsEnforced() {
+        assertThatThrownBy(() -> jdbc.sql("""
+                INSERT INTO property_requests (title, listing_type, min_price, max_price, name, contact)
+                VALUES ('Flat', 'RENT', 5000000, 1000000, 'Ada', 'ada@example.com')
+                """).update())
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void contentBlockKeyIsUnique() {
+        jdbc.sql("INSERT INTO content_blocks (key) VALUES ('trust_points')").update();
+        assertThatThrownBy(() -> jdbc.sql("INSERT INTO content_blocks (key) VALUES ('trust_points')").update())
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
     private UUID insertUser(String email, String role) {
         return jdbc.sql("""
                 INSERT INTO users (email, password_hash, name, role)
