@@ -30,7 +30,7 @@ public class EnquiryRepository {
 
     public boolean advertiserExists(UUID advertiserId) {
         return jdbc.sql("SELECT count(*) FROM users WHERE id = :id AND role IN ('AGENT','ADMIN')")
-                .param("advertiserId", advertiserId).query(Long.class).single() > 0;
+                .param("id", advertiserId).query(Long.class).single() > 0;
     }
 
     public boolean recentlySeen(String contact, UUID subjectId) {

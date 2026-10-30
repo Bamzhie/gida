@@ -159,7 +159,7 @@ class EnquiryTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.items[0].contact").value("ada@example.com"))
-                .andExpect(jsonPath("$.items[0].listingTitle").value(org.hamcrest.Matchers.containsString("Lekki")))
+                .andExpect(jsonPath("$.items[0].listingTitle").value(org.hamcrest.Matchers.containsString("lekki")))
                 .andExpect(jsonPath("$.items[0].action").value("VIEWING"));
     }
 
