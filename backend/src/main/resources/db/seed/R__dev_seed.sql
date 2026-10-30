@@ -159,3 +159,14 @@ INSERT INTO listing_costs (listing_id, cost_type, amount) VALUES
     ('50000000-0000-0000-0000-000000000009', 'AGENCY_FEE',     450000.00),
     ('50000000-0000-0000-0000-000000000009', 'CAUTION',        300000.00),
     ('50000000-0000-0000-0000-000000000009', 'SERVICE_CHARGE', 500000.00);
+
+INSERT INTO enquiries (id, listing_id, advertiser_id, user_id, action, name, contact, message, created_at) VALUES
+    ('80000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001', NULL, NULL,
+     'VIEWING', 'Chidinma Okoro', 'chidinma@example.com',
+     'Can I view this on a Saturday morning?', now() - interval '2 hours'),
+    ('80000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000002', NULL, NULL,
+     'CONTACT', 'Tunde Bakare', '+234 802 333 4444',
+     'Is the service charge included in the asking price?', now() - interval '26 hours'),
+    ('80000000-0000-0000-0000-000000000003', NULL, '20000000-0000-0000-0000-000000000003', NULL,
+     'CONTACT', 'Ngozi Adele', 'ngozi@example.com',
+     'Do you have anything similar on the mainland under ₦2m?', now() - interval '3 days');

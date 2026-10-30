@@ -16,7 +16,11 @@ public class ProblemAdvice {
 
     @ExceptionHandler(ApiException.class)
     ProblemDetail onApiException(ApiException ex) {
-        return problem(ex.getStatus(), ex.getCode(), ex.getMessage());
+        ProblemDetail detail = problem(ex.getStatus(), ex.getCode(), ex.getMessage());
+        if (ex.getErrors() != null && !ex.getErrors().isEmpty()) {
+            detail.setProperty("errors", ex.getErrors());
+        }
+        return detail;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
