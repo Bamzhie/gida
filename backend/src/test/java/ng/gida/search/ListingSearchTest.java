@@ -145,4 +145,34 @@ class ListingSearchTest extends IntegrationTest {
                         .content("{\"availability\":\"" + availability + "\"}"))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    void filtersByAdvertiser() throws Exception {
+        String ade = registerAndLogin("ade@example.com", "AGENT");
+        String bayo = registerAndLogin("bayo@example.com", "AGENT");
+        UUID adeListing = createListingFromJson(ade, ListingFixtures.rent("lekki-phase-1"));
+        publishListing(ade, adeListing);
+        UUID bayoListing = createListingFromJson(bayo, ListingFixtures.rent("ikeja"));
+        publishListing(bayo, bayoListing);
+
+        mvc.perform(get("/api/v1/listings").param("advertiser", userIdOf(ade)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(adeListing.toString()));
+
+        mvc.perform(get("/api/v1/listings").param("advertiser", UUID.randomUUID().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+
+        mvc.perform(get("/api/v1/listings").param("advertiser", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("https://gida.ng/errors/invalid_filter"));
+    }
+
+    private String userIdOf(String token) throws Exception {
+        String body = mvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(body, "$.id");
+    }
 }

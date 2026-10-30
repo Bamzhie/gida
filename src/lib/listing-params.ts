@@ -13,6 +13,7 @@ export type ListingSort = NonNullable<ListingSearch["sort"]>;
 export type ListingQuery = {
   q?: string;
   location?: string;
+  advertiser?: string;
   listingType?: ListingType;
   category?: ListingCategory;
   propertyType?: PropertyType;
@@ -52,6 +53,7 @@ export function parseListingQuery(params: URLSearchParams): ListingQuery {
   return {
     q,
     location: text(params.get("location")),
+    advertiser: text(params.get("advertiser")),
     listingType: pick(params.get("listingType"), LISTING_TYPES) as ListingType | undefined,
     category: pick(params.get("category"), CATEGORIES) as ListingCategory | undefined,
     propertyType: pick(params.get("propertyType"), PROPERTY_TYPES) as PropertyType | undefined,
@@ -69,6 +71,7 @@ export function listingQueryToSearchParams(query: ListingQuery): URLSearchParams
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
   if (query.location) params.set("location", query.location);
+  if (query.advertiser) params.set("advertiser", query.advertiser);
   if (query.listingType) params.set("listingType", query.listingType);
   if (query.category) params.set("category", query.category);
   if (query.propertyType) params.set("propertyType", query.propertyType);
@@ -85,6 +88,7 @@ export function toListingSearch(query: ListingQuery): ListingSearch {
   return {
     q: query.q,
     location: query.location,
+    advertiser: query.advertiser,
     listingType: query.listingType,
     category: query.category,
     propertyType: query.propertyType,

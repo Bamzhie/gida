@@ -143,6 +143,7 @@ export type ProblemDetail = {
 export type ListingSearch = {
   q?: string;
   location?: string;
+  advertiser?: string;
   ids?: string[];
   listingType?: ListingType;
   category?: ListingCategory;

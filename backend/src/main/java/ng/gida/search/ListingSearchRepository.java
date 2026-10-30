@@ -83,6 +83,10 @@ public class ListingSearchRepository {
             binds.put("location", params.location());
             predicates.add("EXISTS (SELECT 1 FROM subtree st WHERE st.id = p.location_id)");
         }
+        if (params.advertiser() != null) {
+            binds.put("advertiser", params.advertiser());
+            predicates.add("l.advertiser_id = :advertiser");
+        }
         if (params.ids() != null) {
             binds.put("ids", params.ids());
             predicates.add("l.id IN (:ids)");

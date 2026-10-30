@@ -19,6 +19,7 @@ export async function searchListings(
     {
       q: search.q,
       location: search.location,
+      advertiser: search.advertiser,
       ids: search.ids,
       listingType: search.listingType,
       category: search.category,

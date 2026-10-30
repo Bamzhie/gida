@@ -16,6 +16,7 @@ import org.springframework.util.MultiValueMap;
 
 public record SearchParams(
         String location,
+        UUID advertiser,
         String q,
         List<UUID> ids,
         ListingType listingType,
@@ -57,6 +58,7 @@ public record SearchParams(
         }
         return new SearchParams(
                 single(params, "location"),
+                advertiser(params),
                 q,
                 ids(params),
                 enumValue(params, "listingType", ListingType.class),
@@ -132,6 +134,11 @@ public record SearchParams(
                     "At most " + MAX_IDS + " ids may be requested");
         }
         return parsed;
+    }
+
+    private static UUID advertiser(MultiValueMap<String, String> params) {
+        String raw = single(params, "advertiser");
+        return raw == null ? null : uuid(raw);
     }
 
     private static List<String> amenities(MultiValueMap<String, String> params) {
