@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HeroSearch } from "@/components/marketplace/hero-search";
 import { ListingCard } from "@/components/marketplace/listing-card";
-import { AUDIENCE_PATHS, LANDING_AREAS, LANDLORD_PATHS, TRUST_POINTS } from "@/lib/marketing-content";
 import { CategoryBrowser } from "@/components/marketing/category-browser";
+import { ContentIcon } from "@/components/marketing/content-icon";
 import { getFavoriteIdSet } from "@/lib/favorites";
-import { searchListings } from "@/lib/listings";
+import { getContent } from "@/lib/content";
+import { getAreas, searchListings } from "@/lib/listings";
 import { toCardModel } from "@/lib/listing-view";
 import { siteUrl } from "@/lib/site";
 
@@ -62,15 +63,21 @@ const jsonLd = {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [featuredResult, rentResult, saleResult, favorites] = await Promise.all([
-    searchListings({ sort: "newest", size: 3 }).catch(() => null),
-    searchListings({ listingType: "RENT", size: 1 }).catch(() => null),
-    searchListings({ listingType: "SALE", size: 1 }).catch(() => null),
-    getFavoriteIdSet(),
-  ]);
+  const [featuredResult, rentResult, saleResult, areas, trustBlock, audienceBlock, landlordBlock, categoryBlock] =
+    await Promise.all([
+      searchListings({ sort: "newest", size: 3 }).catch(() => null),
+      searchListings({ listingType: "RENT", size: 1 }).catch(() => null),
+      searchListings({ listingType: "SALE", size: 1 }).catch(() => null),
+      getAreas(6),
+      getContent("trust_points"),
+      getContent("audience_paths"),
+      getContent("landlord_paths"),
+      getContent("category_groups"),
+    ]);
   const featured = featuredResult?.items.map(toCardModel) ?? [];
   const rentCount = rentResult?.total ?? 0;
   const saleCount = saleResult?.total ?? 0;
+  const favorites = await getFavoriteIdSet();
 
   return (
     <div className="min-h-screen">
@@ -156,17 +163,17 @@ export default async function HomePage() {
       <section className="py-14 md:py-16 border-t border-border">
         <div className="container mx-auto px-4 sm:px-10 lg:px-14">
           <div className="grid gap-6 md:grid-cols-3">
-            {AUDIENCE_PATHS.map((path) => (
+            {audienceBlock.items.map((path) => (
               <Link
-                key={path.title}
-                href={path.href}
+                key={path.label}
+                href={path.href ?? "#"}
                 className="group rounded-2xl border border-border bg-card p-6 transition-colors hover:bg-secondary"
               >
-                <path.icon className="h-7 w-7 text-accent mb-4" aria-hidden="true" />
-                <h2 className="font-heading text-xl font-semibold">{path.title}</h2>
+                <ContentIcon name={path.iconName} className="mb-4 h-7 w-7 text-accent" />
+                <h2 className="font-heading text-xl font-semibold">{path.label}</h2>
                 <p className="mt-2 text-sm text-muted-foreground">{path.body}</p>
                 <span className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary">
-                  {path.cta} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  {String(path.payload.cta ?? "")} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </Link>
             ))}
@@ -184,7 +191,7 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <CategoryBrowser counts={{ RENT: rentCount, SALE: saleCount }} />
+          <CategoryBrowser block={categoryBlock} counts={{ RENT: rentCount, SALE: saleCount }} />
         </div>
       </section>
 
@@ -207,10 +214,10 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {LANDLORD_PATHS.map((path) => (
-                <div key={path.title} className="rounded-2xl border border-border bg-card p-6">
-                  <path.icon className="h-7 w-7 text-accent mb-4" aria-hidden="true" />
-                  <h3 className="font-heading text-lg font-semibold">{path.title}</h3>
+              {landlordBlock.items.map((path) => (
+                <div key={path.label} className="rounded-2xl border border-border bg-card p-6">
+                  <ContentIcon name={path.iconName} className="mb-4 h-7 w-7 text-accent" />
+                  <h3 className="font-heading text-lg font-semibold">{path.label}</h3>
                   <p className="mt-2 text-sm text-muted-foreground">{path.body}</p>
                 </div>
               ))}
@@ -232,10 +239,10 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="grid divide-y divide-border border-y border-border sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4">
-            {TRUST_POINTS.map((point) => (
-              <div key={point.title} className="py-6 sm:px-6 lg:border-r lg:border-border lg:last:border-r-0">
-                <point.icon className="mb-4 h-6 w-6 text-accent" aria-hidden="true" />
-                <h3 className="font-heading text-lg font-semibold">{point.title}</h3>
+            {trustBlock.items.map((point) => (
+              <div key={point.label} className="py-6 sm:px-6 lg:border-r lg:border-border lg:last:border-r-0">
+                <ContentIcon name={point.iconName} className="mb-4 h-7 w-7 text-accent" />
+                <h3 className="font-heading text-lg font-semibold">{point.label}</h3>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">{point.body}</p>
               </div>
             ))}
@@ -269,7 +276,7 @@ export default async function HomePage() {
                   <p className="text-sm text-muted-foreground">Neighbourhoods we cover</p>
                 </div>
               </div>
-              <dl className="mt-4 grid grid-cols-3 gap-2">
+              <dl className="mt-4 grid grid-cols-2 gap-2">
                 <div className="rounded-xl bg-secondary/60 p-3 text-center">
                   <dd className="font-heading text-xl font-semibold">{rentCount}</dd>
                   <dt className="text-xs text-muted-foreground">For rent</dt>
@@ -278,16 +285,16 @@ export default async function HomePage() {
                   <dd className="font-heading text-xl font-semibold">{saleCount}</dd>
                   <dt className="text-xs text-muted-foreground">For sale</dt>
                 </div>
-                <div className="rounded-xl bg-secondary/60 p-3 text-center">
-                  <dd className="font-heading text-xl font-semibold">{LANDING_AREAS.length}</dd>
-                  <dt className="text-xs text-muted-foreground">Lagos areas</dt>
-                </div>
               </dl>
               <div className="mt-4 flex flex-wrap gap-2">
-                {LANDING_AREAS.map((area) => (
-                  <Link key={area} href={`/listings?q=${encodeURIComponent(area)}`}>
-                    <Badge variant="outline" className="text-sm py-1.5 px-3 hover:bg-secondary rounded-full">
-                      <MapPin className="h-3 w-3 mr-1" />{area}
+                {areas.map((area) => (
+                  <Link key={area.slug} href={`/listings?location=${area.slug}`}>
+                    <Badge variant="outline" className="flex-col gap-0.5 text-sm py-1.5 px-3 hover:bg-secondary rounded-full">
+                      <span className="inline-flex items-center">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {area.name}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">{area.listingCount} listed</span>
                     </Badge>
                   </Link>
                 ))}
