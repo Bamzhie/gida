@@ -19,13 +19,12 @@ export default function TermsPage() {
       >
         <div className="max-w-3xl space-y-4 text-muted-foreground">
           <p>
-            The listings, prices, fees, agents and verification details on this site come from demo records. They are
-            illustrative, and they must not be relied on as real property, pricing or availability information.
+            Listings, prices, fees and advertiser details on this site are published by advertisers through the Gida API.
+            Verify every detail with the advertiser before you rely on it.
           </p>
           <p>
-            Enquiries, viewing requests, property requests and saved items are stored in your own browser only and are not
-            delivered to an advertiser. Creating an account does not lead to a live conversation with a landlord, agent or
-            developer.
+            Enquiries, property requests and saved items are stored with your Gida account and are visible to the
+            advertiser on the receiving listing. Gida does not verify that an advertiser replies.
           </p>
         </div>
       </MarketingSection>

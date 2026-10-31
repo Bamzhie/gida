@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import { Check, Info, ShieldCheck } from "lucide-react";
 import { TrustList } from "@/components/marketplace/trust-list";
 import { MarketingLink, MarketingPage, MarketingSection } from "@/components/marketing/marketing-page";
+import { getContent } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Trust and listing status",
   description: "Learn how Gida plans to communicate listing status, freshness and verification without relying on one vague badge.",
 };
 
-export default function TrustPage() {
+export default async function TrustPage() {
+  const checks = await getContent("trust_checks");
   return (
     <MarketingPage
       eyebrow="Trust model"
@@ -20,10 +22,7 @@ export default function TrustPage() {
         title="Make the distinction visible"
         description="A listing can display advertiser checks, agency context, property visits, price confirmation and availability status as separate pieces of information."
       >
-        <TrustList />
-        <p className="mt-5 text-sm text-muted-foreground">
-          The checks shown above are illustrative. Verification services are not connected yet.
-        </p>
+        <TrustList items={checks.items} />
       </MarketingSection>
 
       <MarketingSection eyebrow="Three useful principles" title="What good status communication should do">
