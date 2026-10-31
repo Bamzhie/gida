@@ -1,46 +1,54 @@
-import { formatPrice } from "@/lib/utils";
+import Link from "next/link";
+import { formatDate, formatPrice } from "@/lib/utils";
+import {
+  COST_LABELS,
+  disclosedTotal,
+  listingPriceLabel,
+  type ListingDetailModel,
+} from "@/lib/listing-view";
 
-const ROWS: { label: string; amount: number; confirmed?: boolean }[] = [
-  { label: "Rent, per year", amount: 3_500_000 },
-  { label: "Agency fee, 10 percent", amount: 350_000, confirmed: true },
-  { label: "Legal fee, 5 percent", amount: 175_000, confirmed: true },
-  { label: "Caution deposit", amount: 300_000 },
-  { label: "Service charge, per year", amount: 250_000, confirmed: true },
-];
+export function CostBreakdown({ listing }: { listing: ListingDetailModel }) {
+  const beds = listing.bedrooms === null ? null : `${listing.bedrooms} bed`;
+  const baths = listing.bathrooms === null ? null : `${listing.bathrooms} bath`;
+  const spec = [beds, baths].filter(Boolean).join(", ");
+  const total = disclosedTotal(listing);
 
-const TOTAL = ROWS.reduce((sum, r) => sum + r.amount, 0);
-
-export function CostBreakdown() {
   return (
     <div className="rounded-2xl bg-card border border-border p-6 sm:p-7 shadow-sm">
-      <div className="flex items-baseline justify-between border-b border-dashed border-border pb-3 mb-3">
-        <span className="font-heading font-semibold text-lg">2 bedroom flat, Lekki Phase 1</span>
-        <span className="text-xs text-muted-foreground">2 bed, 2 bath</span>
+      <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-border pb-3 mb-3">
+        <Link href={`/listings/${listing.id}`} className="font-heading font-semibold text-lg hover:text-accent">
+          {listing.title}
+        </Link>
+        <span className="text-xs text-muted-foreground">{spec}</span>
       </div>
 
-      {ROWS.map((row) => (
-        <div
-          key={row.label}
-          className="flex items-center justify-between border-b border-border py-2.5 text-sm"
-        >
-          <span className="text-muted-foreground">{row.label}</span>
-          <span className="font-medium">
-            {formatPrice(row.amount)}
-            {row.confirmed && (
-              <span className="ml-2 text-xs font-normal text-accent">confirmed</span>
-            )}
+      <div className="flex items-center justify-between border-b border-border py-2.5 text-sm">
+        <span className="text-muted-foreground">
+          {listing.listingType === "RENT" ? "Rent" : "Asking price"}
+        </span>
+        <span className="font-medium">{listingPriceLabel(listing)}</span>
+      </div>
+
+      {listing.costs.map((cost) => (
+        <div key={`${cost.type}-${cost.amount}`} className="flex items-center justify-between border-b border-border py-2.5 text-sm">
+          <span className="text-muted-foreground">
+            {COST_LABELS[cost.type]}
+            {cost.note && <span className="block text-xs">{cost.note}</span>}
           </span>
+          <span className="font-medium">{formatPrice(cost.amount)}</span>
         </div>
       ))}
 
       <div className="flex items-center justify-between border-t-2 border-foreground pt-3 mt-1 font-heading font-semibold text-lg">
-        <span>Total package</span>
-        <span>{formatPrice(TOTAL)}</span>
+        <span>Total disclosed</span>
+        <span>{formatPrice(total)}</span>
       </div>
 
       <p className="mt-4 text-xs text-muted-foreground">
-        This is a worked example, using the kind of figures an advertiser would give us on a real
-        listing. We do not add a fee that nobody told us about.
+        {listing.confirmedAt
+          ? `Last confirmed ${formatDate(listing.confirmedAt)} by ${listing.advertiser.name}.`
+          : `Not yet confirmed by ${listing.advertiser.name}.`}{" "}
+        Only the costs an advertiser has disclosed appear here.
       </p>
     </div>
   );

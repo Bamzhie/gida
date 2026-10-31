@@ -11,7 +11,7 @@ import { ListingCard } from "@/components/marketplace/listing-card";
 import { PropertyGallery } from "@/components/marketplace/property-gallery";
 import { getAmenityLabels, getListing, getSimilarListings } from "@/lib/listings";
 import { getFavoriteIdSet } from "@/lib/favorites";
-import { COST_LABELS, formatArea, toCardModel, toDetailModel } from "@/lib/listing-view";
+import { COST_LABELS, disclosedTotal, formatArea, toCardModel, toDetailModel } from "@/lib/listing-view";
 import { formatDate, formatListingStatus, formatPrice, formatPricePeriod } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +60,6 @@ export default async function ListingDetailPage({ params }: Props) {
   const period = formatPricePeriod(listing);
   const recurringCosts = listing.costs.filter((cost) => cost.type === "SERVICE_CHARGE");
   const oneTimeCosts = listing.costs.filter((cost) => cost.type !== "SERVICE_CHARGE");
-  const disclosedTotal = listing.price + listing.costs.reduce((sum, cost) => sum + cost.amount, 0);
 
   const photos = listing.media.filter((item) => item.kind === "PHOTO");
   const otherMedia = listing.media.filter((item) => item.kind !== "PHOTO");
@@ -213,7 +212,7 @@ export default async function ListingDetailPage({ params }: Props) {
               )}
               <div className="mt-3 flex items-center justify-between border-t-2 border-foreground pt-3 font-semibold">
                 <span>{isRent ? "First period, as disclosed" : "Total disclosed"}</span>
-                <span>{formatPrice(disclosedTotal)}</span>
+                <span>{formatPrice(disclosedTotal(listing))}</span>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 Includes only the amounts shown above. A caution or deposit is normally refundable, and this total may not cover every move-in cost.

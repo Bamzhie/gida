@@ -127,6 +127,10 @@ export function listingPriceLabel(
   return `${formatPrice(listing.price)}${suffix}`;
 }
 
+export function disclosedTotal(listing: Pick<ListingDetailModel, "price" | "costs">): number {
+  return listing.price + listing.costs.reduce((sum, cost) => sum + cost.amount, 0);
+}
+
 export function formatArea(sizeSqm: number | null): string | null {
   if (sizeSqm === null) return null;
   return `${Math.round(sizeSqm * SQM_TO_SQFT).toLocaleString("en-NG")} sqft`;

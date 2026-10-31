@@ -1,33 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Calculator, CircleHelp, FileText, Receipt } from "lucide-react";
+import { ArrowRight, CircleHelp } from "lucide-react";
 import { CostBreakdown } from "@/components/marketplace/cost-breakdown";
+import { ContentIcon } from "@/components/marketing/content-icon";
 import { MarketingLink, MarketingPage, MarketingSection } from "@/components/marketing/marketing-page";
+import { getListing, searchListings } from "@/lib/listings";
+import { toDetailModel } from "@/lib/listing-view";
+import { getContent, itemsOf } from "@/lib/content";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Property cost guide",
   description: "Understand how Gida plans to present rent, fees, deposits and listing costs in one transparent property view.",
 };
 
-const COST_PARTS = [
-  {
-    icon: Receipt,
-    title: "The asking amount",
-    body: "Rent or asking price is the anchor. Gida keeps it separate from the costs that may be added around it.",
-  },
-  {
-    icon: Calculator,
-    title: "The total picture",
-    body: "A worked example can show the cost of moving in, subject to what the advertiser actually discloses.",
-  },
-  {
-    icon: FileText,
-    title: "The context",
-    body: "The figures in the worked example are illustrative. A live listing shows the source, date and status of each figure it discloses.",
-  },
-];
+export default async function CostGuidePage() {
+  const [page, block] = await Promise.all([
+    searchListings({ location: "lekki-phase-1", listingType: "RENT", sort: "price-asc", size: 1 }),
+    getContent("cost_guide_parts"),
+  ]);
+  const summary = page.items[0] ?? null;
+  const fetched = summary ? await getListing(summary.id) : null;
+  const detail = fetched ? toDetailModel(fetched) : null;
+  const principles = itemsOf(block, "principle");
+  const questions = itemsOf(block, "question");
 
-export default function CostGuidePage() {
   return (
     <MarketingPage
       eyebrow="Cost transparency"
@@ -35,18 +33,20 @@ export default function CostGuidePage() {
       description="A property decision is easier when the important costs are visible before the phone call. Gida is being designed to keep those costs beside the property details instead of hiding them in a later conversation."
     >
       <MarketingSection
-        eyebrow="A worked example"
-        title="What the worked example demonstrates"
-        description="This is an illustrative example, not a quote for a live property. It shows how separate fees are presented without pretending that every fee is universal."
+        eyebrow="A live example"
+        title="What one real listing discloses"
+        description="This is a live listing, priced as its advertiser disclosed it. Open it to see the same figures beside the property details."
       >
         <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-center">
-          <CostBreakdown />
+          {detail && (
+            <CostBreakdown listing={detail} />
+          )}
           <div className="space-y-4 text-muted-foreground">
             <p>
               The goal is not to make every property look the same. The goal is to make the information a person needs to make a decision easier to find.
             </p>
             <p>
-              On a future listing page, the distinction between disclosed figures, estimates and unavailable information should remain visible.
+              On the listing itself you see the same disclosed figures, the advertiser behind them and the date they were last confirmed.
             </p>
             <MarketingLink href="/listings">Browse listings with disclosed costs</MarketingLink>
           </div>
@@ -55,30 +55,22 @@ export default function CostGuidePage() {
 
       <MarketingSection eyebrow="The principles" title="What belongs beside the price">
         <div className="grid gap-5 md:grid-cols-3">
-          {COST_PARTS.map((part) => {
-            const Icon = part.icon;
-            return (
-              <div key={part.title} className="rounded-2xl border border-border bg-card p-6">
-                <Icon className="mb-4 h-7 w-7 text-accent" aria-hidden="true" />
-                <h3 className="font-heading text-lg font-semibold">{part.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{part.body}</p>
-              </div>
-            );
-          })}
+          {principles.map((part) => (
+            <div key={part.label} className="rounded-2xl border border-border bg-card p-6">
+              <ContentIcon name={part.iconName} className="mb-4 h-7 w-7 text-accent" />
+              <h3 className="font-heading text-lg font-semibold">{part.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{part.body}</p>
+            </div>
+          ))}
         </div>
       </MarketingSection>
 
       <MarketingSection eyebrow="Questions worth asking" title="The detail page should answer more than one question">
         <div className="space-y-3">
-          {[
-            "Is the amount shown yearly, monthly, one-off or negotiable?",
-            "Which fees are disclosed, and which are not yet available?",
-            "What would a person need to budget for before moving in?",
-            "How recent is the information, and who supplied it?",
-          ].map((question) => (
-            <div key={question} className="flex gap-3 rounded-xl border border-border bg-card p-4">
+          {questions.map((question) => (
+            <div key={question.label} className="flex gap-3 rounded-xl border border-border bg-card p-4">
               <CircleHelp className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
-              <p className="text-sm font-medium">{question}</p>
+              <p className="text-sm font-medium">{question.label}</p>
             </div>
           ))}
         </div>
