@@ -6,7 +6,7 @@ import { getContent } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Trust and listing status",
-  description: "Learn how Gida plans to communicate listing status, freshness and verification without relying on one vague badge.",
+  description: "Learn what Gida shows about listing status, freshness and verification, and what it leaves to the advertiser.",
 };
 
 export default async function TrustPage() {
@@ -15,7 +15,7 @@ export default async function TrustPage() {
     <MarketingPage
       eyebrow="Trust model"
       title="One badge was never going to cover it."
-      description="A property can be genuine in some ways and unconfirmed in others. Gida is being designed to show those differences clearly, so a user can understand what a listing page does and does not tell them."
+      description="A property can be genuine in some ways and unconfirmed in others. Gida shows those differences clearly, so a user can understand what a listing page does and does not tell them."
     >
       <MarketingSection
         eyebrow="Status, not reassurance"

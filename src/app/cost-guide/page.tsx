@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Property cost guide",
-  description: "Understand how Gida plans to present rent, fees, deposits and listing costs in one transparent property view.",
+  description: "Understand how Gida presents rent, fees, deposits and listing costs beside the property details.",
 };
 
 export default async function CostGuidePage() {
@@ -30,7 +30,7 @@ export default async function CostGuidePage() {
     <MarketingPage
       eyebrow="Cost transparency"
       title="The rent is never the whole story."
-      description="A property decision is easier when the important costs are visible before the phone call. Gida is being designed to keep those costs beside the property details instead of hiding them in a later conversation."
+      description="A property decision is easier when the important costs are visible before the phone call. Gida keeps those costs beside the property details instead of hiding them in a later conversation."
     >
       <MarketingSection
         eyebrow="A live example"
