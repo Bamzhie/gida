@@ -119,6 +119,36 @@ export type EnquiryDto = {
   createdAt: string;
 };
 
+export type PropertyRequestDto = {
+  id: string;
+  title: string;
+  listingType: ListingType;
+  propertyType: PropertyType | null;
+  area: string | null;
+  areaId: string | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  furnished: boolean | null;
+  neededBy: string | null;
+  notes: string | null;
+  name: string;
+  contact: string;
+  status: "OPEN" | "CLOSED";
+  amenities: string[];
+  createdAt: string;
+};
+
+export type MatchingRequestDto = Omit<PropertyRequestDto, "status" | "name" | "contact" | "createdAt"> & {
+  matchedListingIds: string[];
+  name: string;
+  contact: string;
+  createdAt: string;
+};
+
+export type RequestCreatedDto = { id: string; status: "OPEN" | "CLOSED"; createdAt: string };
+
 export type AuthUser = {
   id: string;
   name: string;
