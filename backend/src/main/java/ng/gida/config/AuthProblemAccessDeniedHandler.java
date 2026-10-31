@@ -8,6 +8,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -21,11 +22,14 @@ public class AuthProblemAccessDeniedHandler implements AccessDeniedHandler {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
+    /** Spring's standard challenge, kept for the WWW-Authenticate header. */
+    private final BearerTokenAccessDeniedHandler challenge =
+            new BearerTokenAccessDeniedHandler();
+
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException exception) throws java.io.IOException {
-        response.setStatus(HttpStatus.FORBIDDEN.value());
-        response.setHeader("WWW-Authenticate", "Bearer error=\"insufficient_scope\"");
+        challenge.handle(request, response, exception);
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         Map<String, Object> problem = new LinkedHashMap<>();
         problem.put("type", URI.create("https://gida.ng/errors/forbidden"));
