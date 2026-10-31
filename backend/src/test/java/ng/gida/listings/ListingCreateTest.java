@@ -62,7 +62,7 @@ class ListingCreateTest extends IntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody("atlantis", "AGENCY_FEE")))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/unknown_location"));
     }
 
@@ -76,7 +76,7 @@ class ListingCreateTest extends IntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/unknown_amenity"));
     }
 
@@ -90,7 +90,7 @@ class ListingCreateTest extends IntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/invalid_price_period"));
     }
 

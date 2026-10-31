@@ -35,7 +35,7 @@ class EnquiryTest extends IntegrationTest {
 
     @Test
     void anonymousVisitorCanContactAnAdvertiserDirectly() throws Exception {
-        String agent = registerAndLogin("agent@example.com", "AGENT");
+        registerAndLogin("agent@example.com", "AGENT");
         String advertiserId = jdbc.sql("SELECT id FROM users WHERE email = 'agent@example.com'")
                 .query(java.util.UUID.class).single().toString();
 

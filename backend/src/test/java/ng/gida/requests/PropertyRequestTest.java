@@ -45,7 +45,7 @@ class PropertyRequestTest extends IntegrationTest {
     void unknownLocationSlugIsRejected() throws Exception {
         mvc.perform(post("/api/v1/requests").contentType(MediaType.APPLICATION_JSON)
                         .content(request("marina-city", "1000000", "4000000")))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/unknown_location"));
     }
 

@@ -125,9 +125,9 @@ public record SearchParams(
         }
         List<UUID> parsed = params.get("ids").stream()
                 .flatMap(value -> Arrays.stream(value.split(",")))
-                .map(String::trim)
+                .map(value -> value.trim())
                 .filter(value -> !value.isEmpty())
-                .map(SearchParams::uuid)
+                .map(value -> uuid(value))
                 .toList();
         if (parsed.size() > MAX_IDS) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "too_many_ids",
@@ -145,7 +145,7 @@ public record SearchParams(
         List<String> values = params.get("amenity");
         return values == null
                 ? List.of()
-                : values.stream().map(String::trim).filter(value -> !value.isEmpty()).distinct().toList();
+                : values.stream().map(value -> value.trim()).filter(value -> !value.isEmpty()).distinct().toList();
     }
 
     private static UUID uuid(String raw) {

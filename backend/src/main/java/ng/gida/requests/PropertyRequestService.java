@@ -40,7 +40,7 @@ public class PropertyRequestService {
         UUID locationId = null;
         if (input.location() != null && !input.location().isBlank()) {
             locationId = locations.findIdBySlug(input.location().trim())
-                    .orElseThrow(() -> new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    .orElseThrow(() -> new ApiException(HttpStatus.UNPROCESSABLE_CONTENT,
                             "unknown_location", "Choose an area from the list."));
         }
 
@@ -63,7 +63,7 @@ public class PropertyRequestService {
         }
 
         List<String> amenitySlugs = input.amenities() == null ? List.of() : input.amenities().stream()
-                .filter(value -> value != null && !value.isBlank()).map(String::trim).distinct().toList();
+                .filter(value -> value != null && !value.isBlank()).map(value -> value.trim()).distinct().toList();
         Map<String, UUID> amenityIds = locations.findAmenityIds(amenitySlugs);
         for (String slug : amenitySlugs) {
             if (!amenityIds.containsKey(slug)) {

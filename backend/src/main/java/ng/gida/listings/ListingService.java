@@ -56,7 +56,7 @@ public class ListingService {
 
     UUID resolveLocation(String slug) {
         return locations.findIdBySlug(slug)
-                .orElseThrow(() -> new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "unknown_location",
+                .orElseThrow(() -> new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "unknown_location",
                         "No location exists with slug '" + slug + "'"));
     }
 
@@ -67,7 +67,7 @@ public class ListingService {
         Map<String, UUID> found = locations.findAmenityIds(requested);
         List<String> unknown = requested.stream().filter(slug -> !found.containsKey(slug)).toList();
         if (!unknown.isEmpty()) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "unknown_amenity",
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "unknown_amenity",
                     "Unknown amenity slugs: " + String.join(", ", unknown));
         }
         return found;
@@ -78,7 +78,7 @@ public class ListingService {
         Set<CostType> seen = EnumSet.noneOf(CostType.class);
         for (CostInput cost : resolved) {
             if (!seen.add(cost.type())) {
-                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "duplicate_cost_type",
+                throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "duplicate_cost_type",
                         "Cost type " + cost.type() + " appears more than once");
             }
         }
@@ -88,7 +88,7 @@ public class ListingService {
     List<MediaInput> validateMedia(List<MediaInput> media) {
         List<MediaInput> resolved = media == null ? List.of() : media;
         if (resolved.size() > 20) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "too_many_media",
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "too_many_media",
                     "A listing may carry at most 20 media entries");
         }
         return resolved;
@@ -96,11 +96,12 @@ public class ListingService {
 
     static void validateCoordinates(Double latitude, Double longitude) {
         if ((latitude == null) != (longitude == null)) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "incomplete_coordinates",
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "incomplete_coordinates",
                     "latitude and longitude must be supplied together");
         }
-        if (latitude != null && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid_coordinates",
+        if (latitude != null && longitude != null
+                && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "invalid_coordinates",
                     "latitude must be between -90 and 90 and longitude between -180 and 180");
         }
     }
@@ -108,7 +109,7 @@ public class ListingService {
     static void validatePricePeriod(ListingType type, PricePeriod period) {
         boolean valid = type == ListingType.SALE ? period == null : period != null;
         if (!valid) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid_price_period",
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "invalid_price_period",
                     "SALE listings must omit pricePeriod; RENT listings must supply it");
         }
     }

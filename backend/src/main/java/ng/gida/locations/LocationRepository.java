@@ -90,6 +90,6 @@ public class LocationRepository {
                 .query((rs, index) -> new Row(rs.getString("slug"), rs.getObject("id", UUID.class)))
                 .list()
                 .stream()
-                .collect(Collectors.toMap(Row::slug, Row::id));
+                .collect(Collectors.toMap(row -> row.slug(), row -> row.id()));
     }
 }
