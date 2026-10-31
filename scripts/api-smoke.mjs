@@ -1,5 +1,15 @@
 #!/usr/bin/env node
 
+// Pick up backend/.env (SMOKE_AGENT_* credentials) without overriding real
+// environment variables; silently skipped when the file is absent.
+import { readFileSync } from "node:fs";
+try {
+  for (const line of readFileSync(new URL("../backend/.env", import.meta.url), "utf8").split("\n")) {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (match && !(match[1] in process.env)) process.env[match[1]] = match[2];
+  }
+} catch {}
+
 const API = `${(process.env.API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "")}/api/v1`;
 const APP = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const LOCATION_KINDS = new Set(["STATE", "LGA", "AREA", "ESTATE", "LANDMARK"]);
@@ -163,7 +173,7 @@ async function main() {
 
   section("Auth against Spring");
   const email = `smoke-${Date.now()}@example.com`;
-  const password = "smoke-test-password";
+  const password = "smoke-" + Math.random().toString(36).slice(2, 8) + "Aa1!";
   const register = await json("/auth/register", {
     method: "POST",
     body: JSON.stringify({ name: "Smoke Test", email, password, phone: "+2348000000000", role: "USER" }),
@@ -379,13 +389,17 @@ async function main() {
     !(after.body?.items ?? []).some((item) => item.id === favListing?.id));
 
   section("Advertiser inbox and matching");
+  const agentEmail = process.env.SMOKE_AGENT_EMAIL ?? "adebayo@gida.local";
+  const agentPassword = process.env.SMOKE_AGENT_PASSWORD;
   const agentLogin = await json("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email: "adebayo@gida.local", password: "GidaLocal2026!" }),
+    body: JSON.stringify({ email: agentEmail, password: agentPassword }),
   });
   check("the seeded advertiser can sign in",
     agentLogin.status === 200 && typeof agentLogin.body?.accessToken === "string",
-    `needs the local-profile dev seed: ${agentLogin.status}`);
+    agentPassword
+      ? `needs the local-profile dev seed: ${agentLogin.status}`
+      : "set SMOKE_AGENT_PASSWORD in backend/.env (see backend/.env.example)");
   const agentAuth = { Authorization: `Bearer ${agentLogin.body?.accessToken}` };
   const inbox = await json("/me/enquiries", { headers: agentAuth });
   check("advertiser inbox lists contact strings",

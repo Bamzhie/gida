@@ -40,12 +40,12 @@ INSERT INTO amenities (slug, label) VALUES
     ('pool',           'Swimming pool');
 
 INSERT INTO users (id, email, password_hash, name, phone, role) VALUES
-    ('20000000-0000-0000-0000-000000000001', 'adebayo@gida.local', crypt('GidaLocal2026!', gen_salt('bf', 12)), 'Adebayo Ogundele', '0803 000 0001', 'AGENT'),
-    ('20000000-0000-0000-0000-000000000002', 'ngozi@gida.local',   crypt('GidaLocal2026!', gen_salt('bf', 12)), 'Ngozi Eze',        '0803 000 0002', 'AGENT'),
-    ('20000000-0000-0000-0000-000000000003', 'tunde@gida.local',   crypt('GidaLocal2026!', gen_salt('bf', 12)), 'Tunde Bakare',     '0803 000 0003', 'AGENT'),
-    ('20000000-0000-0000-0000-000000000004', 'funmi@gida.local',   crypt('GidaLocal2026!', gen_salt('bf', 12)), 'Funmi Adeyemi',    '0803 000 0004', 'AGENT'),
-    ('20000000-0000-0000-0000-000000000005', 'chinedu@gida.local', crypt('GidaLocal2026!', gen_salt('bf', 12)), 'Chinedu Nwosu',    '0803 000 0005', 'AGENT'),
-    ('20000000-0000-0000-0000-000000000006', 'aisha@gida.local',   crypt('GidaLocal2026!', gen_salt('bf', 12)), 'Aisha Bello',      '0803 000 0006', 'AGENT');
+    ('20000000-0000-0000-0000-000000000001', 'adebayo@gida.local', '$2a$12$MAtilXls8srtJncqOgMDMOna8PNlEPHgVwamAG1nporlU1vGpYp1q', 'Adebayo Ogundele', '0803 000 0001', 'AGENT'),
+    ('20000000-0000-0000-0000-000000000002', 'ngozi@gida.local',   '$2a$12$MAtilXls8srtJncqOgMDMOna8PNlEPHgVwamAG1nporlU1vGpYp1q', 'Ngozi Eze',        '0803 000 0002', 'AGENT'),
+    ('20000000-0000-0000-0000-000000000003', 'tunde@gida.local',   '$2a$12$MAtilXls8srtJncqOgMDMOna8PNlEPHgVwamAG1nporlU1vGpYp1q', 'Tunde Bakare',     '0803 000 0003', 'AGENT'),
+    ('20000000-0000-0000-0000-000000000004', 'funmi@gida.local',   '$2a$12$MAtilXls8srtJncqOgMDMOna8PNlEPHgVwamAG1nporlU1vGpYp1q', 'Funmi Adeyemi',    '0803 000 0004', 'AGENT'),
+    ('20000000-0000-0000-0000-000000000005', 'chinedu@gida.local', '$2a$12$MAtilXls8srtJncqOgMDMOna8PNlEPHgVwamAG1nporlU1vGpYp1q', 'Chinedu Nwosu',    '0803 000 0005', 'AGENT'),
+    ('20000000-0000-0000-0000-000000000006', 'aisha@gida.local',   '$2a$12$MAtilXls8srtJncqOgMDMOna8PNlEPHgVwamAG1nporlU1vGpYp1q', 'Aisha Bello',      '0803 000 0006', 'AGENT');
 
 INSERT INTO advertiser_profiles (id, user_id, agency_name, bio, contact_phone) VALUES
     ('30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'Harcourt Court Properties', 'A Lagos property consultant focused on serviced apartments, short-let homes and well-placed residential listings.', '0803 000 0001'),
