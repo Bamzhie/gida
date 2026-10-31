@@ -4,6 +4,8 @@ import { TrustList } from "@/components/marketplace/trust-list";
 import { MarketingLink, MarketingPage, MarketingSection } from "@/components/marketing/marketing-page";
 import { getContent } from "@/lib/content";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Trust and listing status",
   description: "Learn what Gida shows about listing status, freshness and verification, and what it leaves to the advertiser.",

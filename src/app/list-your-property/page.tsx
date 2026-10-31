@@ -6,6 +6,8 @@ import { ContentIcon } from "@/components/marketing/content-icon";
 import { MarketingLink, MarketingPage, MarketingSection } from "@/components/marketing/marketing-page";
 import { getContent } from "@/lib/content";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "List your property",
   description: "Explore the Gida listing journey for landlords, agents and property developers.",

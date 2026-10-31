@@ -7,6 +7,8 @@ import { MarketingLink, MarketingPage, MarketingSection } from "@/components/mar
 import { getContent } from "@/lib/content";
 import type { ContentItemDto } from "@/lib/content";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "How Gida works",
   description: "A concise guide to the Gida property marketplace: search, agents, requests, maps and saved properties.",
