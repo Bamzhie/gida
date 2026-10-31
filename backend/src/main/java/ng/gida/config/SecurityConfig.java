@@ -37,7 +37,10 @@ public class SecurityConfig {
                                 "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/enquiries", "/api/v1/requests").permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)));
+                .oauth2ResourceServer(oauth -> oauth
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(converter))
+                        .authenticationEntryPoint(new AuthProblemEntryPoint())
+                        .accessDeniedHandler(new AuthProblemAccessDeniedHandler()));
         return http.build();
     }
 

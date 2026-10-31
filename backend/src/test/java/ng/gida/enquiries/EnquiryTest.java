@@ -167,7 +167,11 @@ class EnquiryTest extends IntegrationTest {
     void aPlainUserCannotReadAnInbox() throws Exception {
         String user = registerAndLogin("user@example.com", "USER");
         mvc.perform(get("/api/v1/me/enquiries").header("Authorization", "Bearer " + user))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("https://gida.ng/errors/forbidden"))
+                .andExpect(jsonPath("$.title").value("Forbidden"))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.instance").value("/api/v1/me/enquiries"));
     }
 
     @Test

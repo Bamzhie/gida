@@ -84,6 +84,15 @@ class FavoriteTest extends IntegrationTest {
 
     @Test
     void readsRequireASession() throws Exception {
-        mvc.perform(get("/api/v1/me/favorites")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/me/favorites"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("https://gida.ng/errors/signed_out"))
+                .andExpect(jsonPath("$.title").value("Unauthorized"))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.instance").value("/api/v1/me/favorites"));
+        // a malformed token takes the same entry point and gets the same shape
+        mvc.perform(get("/api/v1/me/favorites").header("Authorization", "Bearer not-a-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("https://gida.ng/errors/signed_out"));
     }
 }
