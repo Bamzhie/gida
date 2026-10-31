@@ -1,6 +1,8 @@
 spring:
   application:
     name: gida-backend
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/gida_dev}
     username: ${DB_USER:gida}
