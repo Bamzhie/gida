@@ -171,6 +171,31 @@ INSERT INTO enquiries (id, listing_id, advertiser_id, user_id, action, name, con
      'CONTACT', 'Ngozi Adele', 'ngozi@example.com',
      'Do you have anything similar on the mainland under ₦2m?', now() - interval '3 days');
 
+INSERT INTO property_requests (id, user_id, title, listing_type, property_type, location_id,
+                               min_price, max_price, bedrooms, bathrooms, furnished, needed_by,
+                               notes, name, contact, status, created_at)
+SELECT '90000000-0000-0000-0000-000000000001', NULL,
+       'Two-bedroom flat in Lekki, ready before December', 'RENT', 'APARTMENT',
+       (SELECT id FROM locations WHERE slug = 'lekki-phase-1'),
+       3000000, 6000000, 2, 2, NULL, DATE '2026-12-01',
+       'Close to the office, ready to move in before the holidays.',
+       'Chidinma Okoro', 'chidinma@example.com', 'OPEN', now() - interval '4 days';
+
+INSERT INTO property_requests (id, user_id, title, listing_type, property_type, location_id,
+                               min_price, max_price, bedrooms, bathrooms, furnished, needed_by,
+                               notes, name, contact, status, created_at)
+SELECT '90000000-0000-0000-0000-000000000002', NULL,
+       'Secure apartment in Yaba under ₦1.5m', 'RENT', NULL,
+       (SELECT id FROM locations WHERE slug = 'yaba'),
+       NULL, 1500000, 1, 1, NULL, NULL,
+       'Needs reliable power and a borehole.',
+       'Tunde Bakare', '+234 802 333 4444', 'OPEN', now() - interval '11 days';
+
+INSERT INTO property_request_amenities (request_id, amenity_id)
+SELECT '90000000-0000-0000-0000-000000000001'::uuid, id FROM amenities WHERE slug IN ('24-7-security', 'parking')
+UNION ALL
+SELECT '90000000-0000-0000-0000-000000000002'::uuid, id FROM amenities WHERE slug = 'borehole-water';
+
 INSERT INTO content_blocks (key, title, blurb, payload, sort_order) VALUES
     ('trust_points',     'What you can see before you call', NULL, '{}'::jsonb, 1),
     ('audience_paths',   NULL, NULL, '{}'::jsonb, 2),

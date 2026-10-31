@@ -88,6 +88,10 @@ public class PropertyRequestService {
         return requests.mine(userId, paging);
     }
 
+    public PageResponse<MatchingRequestDto> matching(UUID advertiserId, Paging paging) {
+        return requests.matching(advertiserId, paging);
+    }
+
     private static String trimmed(String raw, int max) {
         if (raw == null) return null;
         String value = raw.trim();

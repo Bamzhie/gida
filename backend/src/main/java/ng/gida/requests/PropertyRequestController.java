@@ -6,6 +6,7 @@ import ng.gida.shared.PageResponse;
 import ng.gida.shared.Paging;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.MultiValueMap;
@@ -38,6 +39,18 @@ public class PropertyRequestController {
                                                  @RequestParam MultiValueMap<String, String> params) {
         return requests.mine(UUID.fromString(jwt.getSubject()),
                 Paging.of(integer(params, "page"), integer(params, "size")));
+    }
+
+    @GetMapping("/me/matching-requests")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public PageResponse<MatchingRequestDto> matching(@AuthenticationPrincipal Jwt jwt,
+                                                     @RequestParam MultiValueMap<String, String> params) {
+        Integer size = integer(params, "size");
+        if (size != null && size > 20) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_paging", "size may be at most 20 here");
+        }
+        return requests.matching(UUID.fromString(jwt.getSubject()),
+                Paging.of(integer(params, "page"), size == null ? 10 : size));
     }
 
     private static Integer integer(MultiValueMap<String, String> params, String key) {

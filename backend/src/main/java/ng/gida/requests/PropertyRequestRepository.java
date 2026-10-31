@@ -85,6 +85,96 @@ public class PropertyRequestRepository {
         return PageResponse.of(items, paging.page(), paging.size(), total);
     }
 
+    private static final String MATCHING_BASE = """
+            WITH RECURSIVE visible_listings AS (
+                SELECT l.id, l.listing_type, l.price, p.location_id, p.bedrooms, p.bathrooms, p.furnished
+                FROM listings l
+                JOIN properties p ON p.id = l.property_id
+                WHERE l.advertiser_id = :me
+                  AND l.lifecycle = 'PUBLISHED'
+                  AND (l.expires_at IS NULL OR l.expires_at > now())
+            ),
+            listing_areas AS (
+                SELECT vl.id AS listing_id, vl.location_id AS node_id
+                FROM visible_listings vl
+                UNION
+                SELECT la.listing_id, parent.parent_id
+                FROM listing_areas la
+                JOIN locations parent ON parent.id = la.node_id
+                WHERE parent.parent_id IS NOT NULL
+            ),
+            pairs AS (
+                SELECT r.id AS request_id, vl.id AS listing_id, vl.price, r.created_at
+                FROM property_requests r
+                JOIN visible_listings vl ON vl.listing_type = r.listing_type
+                     AND (r.location_id IS NULL OR EXISTS
+                            (SELECT 1 FROM listing_areas la
+                             WHERE la.listing_id = vl.id AND la.node_id = r.location_id))
+                     AND (r.min_price IS NULL OR vl.price >= r.min_price)
+                     AND (r.max_price IS NULL OR vl.price <= r.max_price)
+                     AND (r.bedrooms IS NULL OR vl.bedrooms >= r.bedrooms)
+                     AND (r.bathrooms IS NULL OR vl.bathrooms >= r.bathrooms)
+                     AND (r.furnished IS NULL OR vl.furnished = r.furnished)
+                WHERE r.status = 'OPEN' AND r.created_at > now() - interval '90 days'
+            ),
+            grouped AS (
+                SELECT request_id,
+                       string_agg(listing_id::text, ',' ORDER BY price, listing_id) AS matched_ids,
+                       min(created_at) AS seen_at
+                FROM pairs
+                GROUP BY request_id
+            )
+            """;
+
+    public PageResponse<MatchingRequestDto> matching(UUID advertiserId, Paging paging) {
+        long total = jdbc.sql(MATCHING_BASE + "SELECT count(*) FROM grouped")
+                .param("me", advertiserId).query(Long.class).single();
+
+        List<MatchingRequestDto> items = jdbc.sql(MATCHING_BASE + SELECT + """
+                        , g.matched_ids
+                        FROM grouped g
+                        JOIN property_requests r ON r.id = g.request_id
+                        LEFT JOIN locations loc ON loc.id = r.location_id
+                        ORDER BY r.created_at DESC, r.id
+                        LIMIT :limit OFFSET :offset
+                        """)
+                .param("me", advertiserId)
+                .param("limit", paging.size())
+                .param("offset", paging.offset())
+                .query((rs, row) -> new MatchingRequestDto(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("title"),
+                        rs.getString("listing_type"),
+                        rs.getString("property_type"),
+                        rs.getString("area"),
+                        rs.getObject("area_id", UUID.class),
+                        rs.getBigDecimal("min_price"),
+                        rs.getBigDecimal("max_price"),
+                        rs.getObject("bedrooms", Integer.class),
+                        rs.getObject("bathrooms", Integer.class),
+                        rs.getObject("furnished", Boolean.class),
+                        rs.getObject("needed_by", LocalDate.class),
+                        rs.getString("notes"),
+                        rs.getString("name"),
+                        rs.getString("contact"),
+                        labels(rs.getString("amenity_labels")),
+                        ids(rs.getString("matched_ids")),
+                        instant(rs, "created_at")))
+                .list();
+
+        return PageResponse.of(items, paging.page(), paging.size(), total);
+    }
+
+    private static List<String> labels(String raw) {
+        return raw == null || raw.isEmpty() ? List.of() : List.of(raw.split("\\t"));
+    }
+
+    private static List<UUID> ids(String raw) {
+        return raw == null || raw.isEmpty()
+                ? List.of()
+                : java.util.Arrays.stream(raw.split(",")).map(UUID::fromString).toList();
+    }
+
     /** The column list shared by /me/requests and the matching read in Task 11. */
     static final String SELECT = """
             SELECT r.id, r.title, r.listing_type, r.property_type, r.min_price, r.max_price,
