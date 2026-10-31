@@ -13,12 +13,16 @@ import org.springframework.http.MediaType;
 class PropertyRequestTest extends IntegrationTest {
 
     private String request(String location, String min, String max) {
+        return request(location, min, max, "ada@example.com");
+    }
+
+    private String request(String location, String min, String max, String contact) {
         return """
                 {"title":"2-bedroom flat for rent","listingType":"RENT","propertyType":"APARTMENT",
                  "location":"%s","minPrice":%s,"maxPrice":%s,"bedrooms":2,"bathrooms":1,
                  "furnished":true,"neededBy":"2026-12","notes":"Near the office.",
-                 "name":"Ada Eze","contact":"ada@example.com","amenities":["24-7-security"]}
-                """.formatted(location, min, max);
+                 "name":"Ada Eze","contact":"%s","amenities":["24-7-security"]}
+                """.formatted(location, min, max, contact);
     }
 
     @Test
@@ -100,13 +104,17 @@ class PropertyRequestTest extends IntegrationTest {
     void aSignedInSubmitterCanListOwnRequestsOnly() throws Exception {
         String ada = registerAndLogin("ada@example.com", "USER");
         String other = registerAndLogin("other@example.com", "USER");
-        for (String token : new String[]{ada, other}) {
-            mvc.perform(post("/api/v1/requests")
-                            .header("Authorization", "Bearer " + token)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(request("yaba", null, "3000000")))
-                    .andExpect(status().isCreated());
-        }
+        mvc.perform(post("/api/v1/requests")
+                        .header("Authorization", "Bearer " + ada)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request("yaba", null, "3000000")))
+                .andExpect(status().isCreated());
+        // a different contact, or the plan's (contact, lower(title)) dedupe would answer 409
+        mvc.perform(post("/api/v1/requests")
+                        .header("Authorization", "Bearer " + other)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request("yaba", null, "3000000", "other@example.com")))
+                .andExpect(status().isCreated());
 
         mvc.perform(get("/api/v1/me/requests").header("Authorization", "Bearer " + ada))
                 .andExpect(status().isOk())
