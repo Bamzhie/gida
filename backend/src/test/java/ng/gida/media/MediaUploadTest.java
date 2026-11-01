@@ -92,7 +92,7 @@ class MediaUploadTest extends IntegrationTest {
         }
 
         upload(token, listingId, "PHOTO", "photo-21.png", "image/png", png())
-                .andExpect(status().isConflict())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/too_many_media"));
     }
 
@@ -264,7 +264,9 @@ class MediaUploadTest extends IntegrationTest {
 
     @Test
     void pathTraversalKeysAreRefused() throws Exception {
-        mvc.perform(get("/media/listings/../application.yml")).andExpect(status().isNotFound());
+        // the container normalises ".." and answers 400 before our controller sees it;
+        // anything 4xx is a refusal, and the storage-level assertions below cover the rest
+        mvc.perform(get("/media/listings/../application.yml")).andExpect(status().is4xxClientError());
 
         assertThatThrownBy(() -> storage.put("listings/../escape.png", new byte[1], "image/png"))
                 .isInstanceOf(IllegalArgumentException.class);

@@ -51,7 +51,7 @@ public class MediaStorageService {
                     "The uploaded file is larger than the " + (cap / (1024 * 1024)) + " MB cap for " + kind);
         }
         if (countMedia(listingId) >= MAX_MEDIA_PER_LISTING) {
-            throw new ApiException(HttpStatus.CONFLICT, "too_many_media",
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "too_many_media",
                     "A listing may carry at most 20 media entries");
         }
         String urlKey;

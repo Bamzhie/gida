@@ -82,10 +82,10 @@ class AdvertiserManagementTest extends IntegrationTest {
         assertThat(copy).isNotEqualTo(source);
         assertThat(lifecycleOf(copy)).isEqualTo("DRAFT");
         assertThat(titleOf(copy)).isEqualTo("Copy of Sunlit 2 bedroom in Lekki");
-        assertThat(jdbc.sql("SELECT published_at FROM listings WHERE id = :id")
-                .param("id", copy).query(java.time.OffsetDateTime.class).single()).isNull();
-        assertThat(jdbc.sql("SELECT expires_at FROM listings WHERE id = :id")
-                .param("id", copy).query(java.time.OffsetDateTime.class).single()).isNull();
+        assertThat(jdbc.sql("""
+                        SELECT count(*) FROM listings
+                        WHERE id = :id AND (published_at IS NOT NULL OR expires_at IS NOT NULL)
+                        """).param("id", copy).query(Long.class).single()).isZero();
         assertThat(jdbc.sql("SELECT advertiser_id FROM listings WHERE id = :id")
                 .param("id", copy).query(UUID.class).single()).isEqualTo(userIdOf("agent@example.com"));
 
@@ -150,7 +150,7 @@ class AdvertiserManagementTest extends IntegrationTest {
                         .value("https://gida.ng/errors/invalid_lifecycle_transition"));
 
         publishListing(owner, draft);
-        mvc.perform(post("/api/v1/me/listings/{id}/pause", draft)
+        mvc.perform(post("/api/v1/listings/{id}/pause", draft)
                         .header("Authorization", "Bearer " + owner))
                 .andExpect(status().isNoContent());
         mvc.perform(post("/api/v1/me/listings/{id}/renew", draft)

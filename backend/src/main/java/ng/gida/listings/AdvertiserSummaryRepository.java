@@ -16,9 +16,9 @@ public class AdvertiserSummaryRepository {
     // an enquiry counts for the advertiser when it addresses them directly or sits on one of
     // their listings — the same attribution the enquiry inbox uses
     private static final String ATTRIBUTED_TO_ME = """
-            e.advertiser_id = :me
-            OR (e.listing_id IS NOT NULL AND EXISTS
-                  (SELECT 1 FROM listings l WHERE l.id = e.listing_id AND l.advertiser_id = :me))
+            (e.advertiser_id = :me
+             OR (e.listing_id IS NOT NULL AND EXISTS
+                   (SELECT 1 FROM listings l WHERE l.id = e.listing_id AND l.advertiser_id = :me)))
             """;
 
     private final JdbcClient jdbc;
