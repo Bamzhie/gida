@@ -172,6 +172,16 @@ public class ListingService {
     }
 
     @Transactional
+    public ListingRenewed renew(UUID actorId, boolean admin, UUID listingId) {
+        ListingRow row = ownedRow(actorId, admin, listingId);
+        if (!"PUBLISHED".equals(row.lifecycle())) {
+            throw new ApiException(HttpStatus.CONFLICT, "invalid_lifecycle_transition",
+                    "Only published listings can be renewed");
+        }
+        return new ListingRenewed(listingId, listings.renew(listingId).toInstant());
+    }
+
+    @Transactional
     public ListingCreated duplicate(UUID actorId, boolean admin, UUID listingId) {
         ListingRow row = ownedRow(actorId, admin, listingId);
         UUID propertyId = listings.copyProperty(row.propertyId());

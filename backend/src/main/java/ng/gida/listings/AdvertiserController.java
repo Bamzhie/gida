@@ -57,6 +57,12 @@ public class AdvertiserController {
         return listingService.duplicate(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
     }
 
+    @PostMapping("/me/listings/{id}/renew")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ListingRenewed renew(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return listingService.renew(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
+    }
+
     @PostMapping("/listings/{id}/pause")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")

@@ -134,6 +134,18 @@ public class ListingRepository {
                 .update();
     }
 
+    public OffsetDateTime renew(UUID listingId) {
+        return jdbc.sql("""
+                        UPDATE listings
+                        SET expires_at = now() + interval '30 days', updated_at = now()
+                        WHERE id = :id
+                        RETURNING expires_at
+                        """)
+                .param("id", listingId)
+                .query(OffsetDateTime.class)
+                .single();
+    }
+
     public UUID copyProperty(UUID sourcePropertyId) {
         return jdbc.sql("""
                         INSERT INTO properties
