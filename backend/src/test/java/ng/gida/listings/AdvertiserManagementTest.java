@@ -1,6 +1,7 @@
 package ng.gida.listings;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,7 +10,9 @@ import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.UUID;
 import ng.gida.IntegrationTest;
+import ng.gida.support.ListingFixtures;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 
 /**
  * Listing-management endpoints of the advertiser surface.
@@ -23,6 +26,14 @@ import org.junit.jupiter.api.Test;
  * only and sets {@code expires_at = now() + 30 days}; 200 returns
  * {@code {"id": ..., "expiresAt": ...}}; any other state is 409
  * {@code invalid_lifecycle_transition} (the established transition-conflict code), non-owners 403.
+ *
+ * <p>Summary contract: {@code GET /api/v1/me/advertiser-summary} (AGENT/ADMIN) returns
+ * {@code {"listingsByState": {"DRAFT": 0, "SUBMITTED": 0, "UNDER_REVIEW": 0, "PUBLISHED": 0,
+ * "PAUSED": 0, "EXPIRED": 0, "REJECTED": 0}, "totalEnquiries": 0, "totalViewingRequests": 0,
+ * "topListings": [{"listingId": "...", "title": "...", "enquiryCount": 1}]}}. Enquiry totals
+ * count rows addressed to the advertiser directly or on any of their listings (same attribution
+ * as the enquiry inbox); {@code topListings} ranks only listing-scoped enquiries, most-enquired
+ * first, capped at 20.
  */
 class AdvertiserManagementTest extends IntegrationTest {
 
@@ -151,6 +162,78 @@ class AdvertiserManagementTest extends IntegrationTest {
         mvc.perform(post("/api/v1/me/listings/{id}/renew", draft)
                         .header("Authorization", "Bearer " + other))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void summaryCountsListingsEnquiriesAndTopListings() throws Exception {
+        String ade = registerAndLogin("ade@example.com", "AGENT");
+        String bayo = registerAndLogin("bayo@example.com", "AGENT");
+        UUID busy = createListing(ade, "lekki-phase-1");
+        UUID quiet = createListing(ade, "ikeja");
+        UUID draft = createListing(ade, "yaba");
+        UUID paused = createListing(ade, "ikeja");
+        publishListing(ade, busy);
+        publishListing(ade, quiet);
+        publishListing(ade, paused);
+        mvc.perform(post("/api/v1/listings/{id}/pause", paused)
+                .header("Authorization", "Bearer " + ade)).andExpect(status().isNoContent());
+        UUID bayoListing = createListing(bayo, "yaba");
+        publishListing(bayo, bayoListing);
+
+        enquire(enquiryBody(busy.toString(), "CONTACT", "one@example.com"));
+        enquire(enquiryBody(busy.toString(), "CONTACT", "two@example.com"));
+        enquire(enquiryBody(busy.toString(), "VIEWING", "three@example.com"));
+        enquire(enquiryBody(quiet.toString(), "VIEWING", "four@example.com"));
+        enquire(enquiryBody(bayoListing.toString(), "CONTACT", "five@example.com"));
+        String adeId = userIdOf("ade@example.com").toString();
+        enquire("""
+                {"advertiserId":"%s","action":"CONTACT","name":"Ada Eze",
+                 "contact":"direct@example.com","message":"Reaching you directly"}
+                """.formatted(adeId));
+
+        mvc.perform(get("/api/v1/me/advertiser-summary").header("Authorization", "Bearer " + ade))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.listingsByState.DRAFT").value(1))
+                .andExpect(jsonPath("$.listingsByState.PUBLISHED").value(2))
+                .andExpect(jsonPath("$.listingsByState.PAUSED").value(1))
+                .andExpect(jsonPath("$.listingsByState.SUBMITTED").value(0))
+                .andExpect(jsonPath("$.listingsByState.UNDER_REVIEW").value(0))
+                .andExpect(jsonPath("$.listingsByState.EXPIRED").value(0))
+                .andExpect(jsonPath("$.listingsByState.REJECTED").value(0))
+                .andExpect(jsonPath("$.totalEnquiries").value(5))
+                .andExpect(jsonPath("$.totalViewingRequests").value(2))
+                .andExpect(jsonPath("$.topListings.length()").value(2))
+                .andExpect(jsonPath("$.topListings[0].listingId").value(busy.toString()))
+                .andExpect(jsonPath("$.topListings[0].title").value("A home in lekki-phase-1"))
+                .andExpect(jsonPath("$.topListings[0].enquiryCount").value(3))
+                .andExpect(jsonPath("$.topListings[1].listingId").value(quiet.toString()))
+                .andExpect(jsonPath("$.topListings[1].enquiryCount").value(1));
+
+        mvc.perform(get("/api/v1/me/advertiser-summary").header("Authorization", "Bearer " + bayo))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalEnquiries").value(1))
+                .andExpect(jsonPath("$.topListings.length()").value(1))
+                .andExpect(jsonPath("$.topListings[0].listingId").value(bayoListing.toString()));
+    }
+
+    @Test
+    void summaryRequiresAnAdvertiserRole() throws Exception {
+        String user = registerAndLogin("user@example.com", "USER");
+        mvc.perform(get("/api/v1/me/advertiser-summary").header("Authorization", "Bearer " + user))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("https://gida.ng/errors/forbidden"));
+    }
+
+    private void enquire(String body) throws Exception {
+        mvc.perform(post("/api/v1/enquiries").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+    }
+
+    private String enquiryBody(String listingId, String action, String contact) {
+        return """
+                {"listingId":"%s","action":"%s","name":"Ada Eze","contact":"%s",
+                 "message":"Is this still available?"}
+                """.formatted(listingId, action, contact);
     }
 
     private java.time.Instant expiresAtOf(UUID listingId) {

@@ -78,6 +78,12 @@ public class AdvertiserController {
         return listingService.ownListings(UUID.fromString(jwt.getSubject()), Paging.of(page, size));
     }
 
+    @GetMapping("/me/advertiser-summary")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public AdvertiserSummaryDto summary(@AuthenticationPrincipal Jwt jwt) {
+        return listingService.summary(UUID.fromString(jwt.getSubject()));
+    }
+
     private static boolean isAdmin(Jwt jwt) {
         return "ADMIN".equals(jwt.getClaimAsString("role"));
     }

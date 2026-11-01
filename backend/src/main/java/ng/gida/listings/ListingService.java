@@ -26,14 +26,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ListingService {
 
+    private static final int TOP_LISTINGS_LIMIT = 20;
+
     private final LocationRepository locations;
     private final PropertyRepository properties;
     private final ListingRepository listings;
+    private final AdvertiserSummaryRepository summaries;
 
-    public ListingService(LocationRepository locations, PropertyRepository properties, ListingRepository listings) {
+    public ListingService(LocationRepository locations, PropertyRepository properties,
+                          ListingRepository listings, AdvertiserSummaryRepository summaries) {
         this.locations = locations;
         this.properties = properties;
         this.listings = listings;
+        this.summaries = summaries;
     }
 
     @Transactional
@@ -197,6 +202,15 @@ public class ListingService {
         List<OwnerListingDto> items = listings.findByAdvertiser(advertiserId, paging.size(), paging.offset());
         long total = listings.countByAdvertiser(advertiserId);
         return PageResponse.of(items, paging.page(), paging.size(), total);
+    }
+
+    @Transactional(readOnly = true)
+    public AdvertiserSummaryDto summary(UUID advertiserId) {
+        return new AdvertiserSummaryDto(
+                summaries.listingsByLifecycle(advertiserId),
+                summaries.totalEnquiries(advertiserId),
+                summaries.totalViewingRequests(advertiserId),
+                summaries.topListingsByEnquiries(advertiserId, TOP_LISTINGS_LIMIT));
     }
 
     ListingRow ownedRow(UUID actorId, boolean admin, UUID listingId) {
