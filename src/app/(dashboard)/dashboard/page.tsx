@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Inbox, LogIn, Target } from "lucide-react";
+import { BarChart3, Building2, Inbox, LogIn, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { getMatchingRequests } from "@/lib/requests";
 import { getCurrentUser } from "@/lib/session";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { isEmail } from "@/lib/validate";
-import type { EnquiryDto, MatchingRequestDto, PageResponse } from "@/lib/api-types";
+import type { AdvertiserSummaryDto, EnquiryDto, MatchingRequestDto, PageResponse } from "@/lib/api-types";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,15 @@ function requestSummary(request: MatchingRequestDto): string {
     [request.area, request.bedrooms !== null ? `${request.bedrooms} beds` : null,
       request.maxPrice !== null ? `up to ${formatPrice(request.maxPrice)}` : null]
       .filter(Boolean).join(" · ") || "Anywhere · no bedrooms or budget set"
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-secondary/50 px-4 py-3">
+      <p className="text-xl font-bold">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
   );
 }
 
@@ -45,6 +54,9 @@ export default async function DashboardPage() {
   const inbox = isInboxVisible
     ? (await apiGetAuthed<PageResponse<EnquiryDto>>("/me/enquiries", { size: 10 })).items
     : [];
+  const summary = isInboxVisible
+    ? await apiGetAuthed<AdvertiserSummaryDto>("/me/advertiser-summary")
+    : null;
   const matching = isInboxVisible ? await getMatchingRequests(10) : [];
   const amenityLabels = matching.length > 0 ? await getAmenityLabels() : {};
 
@@ -53,13 +65,61 @@ export default async function DashboardPage() {
       <h1 className="font-heading text-2xl font-bold">Welcome back, {user.name}</h1>
       <p className="mt-2 text-muted-foreground">{user.email}</p>
       <div className="mt-6 flex flex-wrap gap-3">
-        <Button asChild>
+        {isInboxVisible && (
+          <Button asChild>
+            <Link href="/dashboard/listings">My listings</Link>
+          </Button>
+        )}
+        <Button variant={isInboxVisible ? "outline" : "default"} asChild>
           <Link href="/favorites">Saved properties</Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href="/listings">Browse listings</Link>
         </Button>
       </div>
+      {summary && (
+        <Card className="mt-8 rounded-2xl">
+          <CardContent className="pt-6">
+            <h2 className="mb-4 flex items-center gap-2 font-heading text-lg font-semibold">
+              <BarChart3 className="h-4 w-4" /> Your listings at a glance
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <SummaryStat label="Drafts" value={summary.listingsByState.DRAFT ?? 0} />
+              <SummaryStat label="Live" value={summary.listingsByState.PUBLISHED ?? 0} />
+              <SummaryStat label="Paused" value={summary.listingsByState.PAUSED ?? 0} />
+              <SummaryStat label="Total enquiries" value={summary.totalEnquiries} />
+              <SummaryStat label="Viewing requests" value={summary.totalViewingRequests} />
+            </div>
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold">Most enquired listings</h3>
+              {summary.topListings.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No enquiries on individual listings yet.
+                </p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {summary.topListings.map((top) => (
+                    <li
+                      key={top.listingId}
+                      className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 last:border-0 last:pb-0"
+                    >
+                      <Link href={`/listings/${top.listingId}`} className="text-sm hover:underline">
+                        {top.title}
+                      </Link>
+                      <Badge variant="secondary">
+                        {top.enquiryCount} {top.enquiryCount === 1 ? "enquiry" : "enquiries"}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Counts come straight from the enquiry record — nothing estimated.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {isInboxVisible && (
         <Card className="mt-8 rounded-2xl">
           <CardContent className="pt-6">
