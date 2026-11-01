@@ -60,6 +60,7 @@ async function json(path, init = {}) {
 // must add the boundary itself.
 async function multipart(path, form, init = {}) {
   const response = await fetch(`${API}${path}`, {
+    method: "POST",
     ...init,
     headers: { Accept: "application/json", ...(init.headers ?? {}) },
     body: form,
