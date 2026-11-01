@@ -32,5 +32,8 @@ build/
 ### VS Code ###
 .vscode/
 
+### Local media storage (GIDA_MEDIA_DIR default) ###
+/data/
+
 ### Local secrets ###
 .env

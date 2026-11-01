@@ -35,6 +35,7 @@ public class SecurityConfig {
                                 "/api/v1/advertisers", "/api/v1/areas", "/api/v1/content/*").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info",
                                 "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/enquiries", "/api/v1/requests").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
