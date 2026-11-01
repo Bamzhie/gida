@@ -11,8 +11,11 @@ try {
 } catch {}
 
 const API = `${(process.env.API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "")}/api/v1`;
+// Spring serves stored media outside the versioned API, at /media/{key}.
+const SPRING = API.replace(/\/api\/v1$/, "");
 const APP = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const LOCATION_KINDS = new Set(["STATE", "LGA", "AREA", "ESTATE", "LANDMARK"]);
+const LIFECYCLE_STATES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "PUBLISHED", "PAUSED", "EXPIRED", "REJECTED"];
 
 let passed = 0;
 const failures = [];
@@ -49,6 +52,17 @@ async function json(path, init = {}) {
   const response = await fetch(`${API}${path}`, {
     ...init,
     headers: { Accept: "application/json", "Content-Type": "application/json", ...(init.headers ?? {}) },
+  });
+  return { status: response.status, body: await read(response) };
+}
+
+// Like json but for multipart bodies: no Content-Type here — the runtime
+// must add the boundary itself.
+async function multipart(path, form, init = {}) {
+  const response = await fetch(`${API}${path}`, {
+    ...init,
+    headers: { Accept: "application/json", ...(init.headers ?? {}) },
+    body: form,
   });
   return { status: response.status, body: await read(response) };
 }
@@ -416,6 +430,117 @@ async function main() {
   check("a plain user is refused both reads",
     userInbox.status === 403 && userMatching.status === 403,
     `${userInbox.status}/${userMatching.status}`);
+
+  section("Advertiser authoring");
+  const advertiserEmail = `smoke-${Date.now()}-agent@example.com`;
+  const advertiserPassword = "smoke-" + Math.random().toString(36).slice(2, 8) + "Aa1!";
+  const advertiserRegister = await json("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({
+      name: "Smoke Agent", email: advertiserEmail, password: advertiserPassword,
+      phone: "+2348000000001", role: "AGENT",
+    }),
+  });
+  check(
+    "agent registration returns 201 with the new agent",
+    advertiserRegister.status === 201 && advertiserRegister.body?.email === advertiserEmail,
+    String(advertiserRegister.status)
+  );
+  const advertiserLogin = await json("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: advertiserEmail, password: advertiserPassword }),
+  });
+  const advertiserAuth = { Authorization: `Bearer ${advertiserLogin.body?.accessToken}` };
+  check(
+    "the throwaway agent can sign in",
+    advertiserLogin.status === 200 && typeof advertiserLogin.body?.accessToken === "string",
+    String(advertiserLogin.status)
+  );
+
+  // A rent fixture mirroring ng.gida.support.ListingFixtures#rent.
+  const rentFixture = {
+    title: "A home in lekki-phase-1",
+    description: "A well placed home close to the main road.",
+    listingType: "RENT",
+    pricePeriod: "YEAR",
+    price: 3500000,
+    property: {
+      locationSlug: "lekki-phase-1",
+      addressLine: "12 Admiralty Way",
+      propertyType: "APARTMENT",
+      bedrooms: 2,
+      bathrooms: 2,
+      latitude: 6.4385,
+      longitude: 3.4356,
+      amenities: ["borehole-water", "24-7-security"],
+    },
+    costs: [{ type: "AGENCY_FEE", amount: 350000 }],
+  };
+  const created = await json("/listings", { method: "POST", headers: advertiserAuth, body: JSON.stringify(rentFixture) });
+  const listingId = created.body?.id;
+  check("the agent creates a rent listing", created.status === 201 && typeof listingId === "string", String(created.status));
+
+  // A minimal valid 1x1 PNG; the photo is re-encoded server side, so it only
+  // has to decode. Multipart bodies carry no hand-set content type.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64"
+  );
+  const photoForm = () => {
+    const form = new FormData();
+    form.append("kind", "PHOTO");
+    form.append("file", new Blob([png], { type: "image/png" }), "photo.png");
+    return form;
+  };
+  const upload = await multipart(`/me/listings/${listingId}/media`, photoForm(), { headers: advertiserAuth });
+  const mediaUrl = upload.body?.url ?? "";
+  check("the photo upload returns 201 under /media/", upload.status === 201 && mediaUrl.startsWith("/media/"), `${upload.status} ${mediaUrl}`);
+  const served = await fetch(`${SPRING}${mediaUrl}`);
+  check(
+    "Spring serves the stored photo as an image",
+    served.status === 200 && (served.headers.get("content-type") ?? "").startsWith("image/"),
+    String(served.status)
+  );
+
+  const published = await json(`/listings/${listingId}/publish`, { method: "POST", headers: advertiserAuth });
+  check("publish returns 204", published.status === 204, String(published.status));
+  const publicDetail = await json(`/listings/${listingId}`);
+  check(
+    "the public detail carries the uploaded photo",
+    publicDetail.status === 200 && (publicDetail.body?.media ?? []).some((entry) => entry.url === mediaUrl),
+    String(publicDetail.status)
+  );
+
+  const copied = await json(`/me/listings/${listingId}/duplicate`, { method: "POST", headers: advertiserAuth });
+  check(
+    "duplicate returns a new draft id",
+    copied.status === 201 && typeof copied.body?.id === "string" && copied.body.id !== listingId && copied.body?.lifecycle === "DRAFT",
+    String(copied.status)
+  );
+
+  const renewed = await json(`/me/listings/${listingId}/renew`, { method: "POST", headers: advertiserAuth });
+  const expiresAt = Date.parse(renewed.body?.expiresAt ?? "");
+  const day = 24 * 60 * 60 * 1000;
+  check(
+    "renew returns 200 with an expiry about 30 days out",
+    renewed.status === 200 && Math.abs(expiresAt - (Date.now() + 30 * day)) < day,
+    String(renewed.status)
+  );
+
+  const summary = await json("/me/advertiser-summary", { headers: advertiserAuth });
+  const states = summary.body?.listingsByState ?? {};
+  check(
+    "the summary spans all seven lifecycle states and counts enquiries",
+    summary.status === 200 && LIFECYCLE_STATES.every((state) => state in states) && typeof summary.body?.totalEnquiries === "number",
+    `${summary.status} ${Object.keys(states).join(",")}`
+  );
+
+  const locked = await multipart(`/me/listings/${listingId}/media`, photoForm(), { headers: advertiserAuth });
+  check(
+    "uploading to a published listing returns 422 listing_locked",
+    locked.status === 422 && problemCode(locked.body) === "listing_locked",
+    `${locked.status} ${problemCode(locked.body)}`
+  );
 
   section("Rendered pages");
   const landing = await app("/");
