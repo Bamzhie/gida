@@ -15,6 +15,9 @@ import org.springframework.http.HttpStatus;
  */
 public final class MediaTypes {
 
+    /** Content type of every re-encoded photo variant (see {@link ImageVariants}). */
+    public static final String JPEG = "image/jpeg";
+
     private static final Map<String, String> BY_EXTENSION = Map.of(
             "jpg", "image/jpeg",
             "jpeg", "image/jpeg",

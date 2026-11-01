@@ -23,6 +23,7 @@ import javax.imageio.ImageIO;
 import ng.gida.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MvcResult;
@@ -140,7 +141,49 @@ class MediaUploadTest extends IntegrationTest {
     }
 
     @Test
-    void deletingMediaRemovesTheRowAndTheStoredObject() throws Exception {
+    void photosAreProcessedIntoThumbAndDisplayVariants() throws Exception {
+        String token = registerAndLogin("agent@example.com", "AGENT");
+        UUID listingId = createListing(token, "lekki-phase-1");
+
+        String body = upload(token, listingId, "PHOTO", "photo.png", "image/png", png())
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String url = JsonPath.read(body, "$.url");
+        assertThat(url).endsWith("-display.jpg");
+        String base = keyOf(url).substring(0, keyOf(url).length() - "-display.jpg".length());
+        Path original = MEDIA_DIR.resolve(base + ".jpg");
+        Path thumb = MEDIA_DIR.resolve(base + "-thumb.jpg");
+        Path display = MEDIA_DIR.resolve(base + "-display.jpg");
+        assertThat(original).exists();
+        assertThat(thumb).exists();
+        assertThat(display).exists();
+
+        BufferedImage thumbImage = ImageIO.read(thumb.toFile());
+        assertThat(thumbImage.getWidth()).isEqualTo(400);
+        assertThat(thumbImage.getHeight()).isEqualTo(300);
+        BufferedImage displayImage = ImageIO.read(display.toFile());
+        assertThat(displayImage.getWidth()).isEqualTo(640);
+        assertThat(displayImage.getHeight()).isEqualTo(480);
+
+        mvc.perform(get(url))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/jpeg"));
+    }
+
+    @Test
+    void undecodablePhotosAreRejected() throws Exception {
+        String token = registerAndLogin("agent@example.com", "AGENT");
+        UUID listingId = createListing(token, "lekki-phase-1");
+
+        upload(token, listingId, "PHOTO", "photo.jpg", "image/jpeg",
+                "this is not an image at all".getBytes())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("https://gida.ng/errors/invalid_image"));
+    }
+
+    @Test
+    void deletingMediaRemovesTheRowAndTheStoredObjects() throws Exception {
         String token = registerAndLogin("agent@example.com", "AGENT");
         UUID listingId = createListing(token, "lekki-phase-1");
         String body = upload(token, listingId, "PHOTO", "photo.png", "image/png", png())
@@ -148,8 +191,13 @@ class MediaUploadTest extends IntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         UUID mediaId = UUID.fromString(JsonPath.read(body, "$.id"));
         String url = JsonPath.read(body, "$.url");
-        Path stored = MEDIA_DIR.resolve(keyOf(url));
-        assertThat(stored).exists();
+        String base = keyOf(url).substring(0, keyOf(url).length() - "-display.jpg".length());
+        Path original = MEDIA_DIR.resolve(base + ".jpg");
+        Path thumb = MEDIA_DIR.resolve(base + "-thumb.jpg");
+        Path display = MEDIA_DIR.resolve(base + "-display.jpg");
+        assertThat(original).exists();
+        assertThat(thumb).exists();
+        assertThat(display).exists();
 
         mvc.perform(delete("/api/v1/me/listings/{listingId}/media/{mediaId}", listingId, mediaId)
                         .header("Authorization", "Bearer " + token))
@@ -159,7 +207,9 @@ class MediaUploadTest extends IntegrationTest {
                 .param("id", mediaId)
                 .query(Long.class)
                 .single()).isZero();
-        assertThat(stored).doesNotExist();
+        assertThat(original).doesNotExist();
+        assertThat(thumb).doesNotExist();
+        assertThat(display).doesNotExist();
     }
 
     @Test
@@ -171,7 +221,7 @@ class MediaUploadTest extends IntegrationTest {
 
         mvc.perform(put("/api/v1/me/listings/{listingId}/media/order", listingId)
                         .header("Authorization", "Bearer " + token)
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 [{"id": "%s", "sortOrder": 0}, {"id": "%s", "sortOrder": 1}]
                                 """.formatted(second, first)))
@@ -199,6 +249,7 @@ class MediaUploadTest extends IntegrationTest {
         MvcResult served = mvc.perform(get(url))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", CACHE_CONTROL))
+                .andExpect(header().string("Content-Type", "image/jpeg"))
                 .andReturn();
 
         assertThat(served.getResponse().getContentAsByteArray()).isNotEmpty();

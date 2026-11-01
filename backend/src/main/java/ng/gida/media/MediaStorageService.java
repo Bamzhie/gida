@@ -24,10 +24,12 @@ public class MediaStorageService {
 
     private final JdbcClient jdbc;
     private final ObjectStorage storage;
+    private final ImageVariants images;
 
-    public MediaStorageService(JdbcClient jdbc, ObjectStorage storage) {
+    public MediaStorageService(JdbcClient jdbc, ObjectStorage storage, ImageVariants images) {
         this.jdbc = jdbc;
         this.storage = storage;
+        this.images = images;
     }
 
     @Transactional
@@ -52,12 +54,25 @@ public class MediaStorageService {
             throw new ApiException(HttpStatus.CONFLICT, "too_many_media",
                     "A listing may carry at most 20 media entries");
         }
-        String extension = MediaTypes.extensionOf(filename).orElseThrow();
-        String key = "listings/" + listingId + "/" + UUID.randomUUID() + "." + extension;
-        storage.put(key, content, normalizedType);
+        String urlKey;
+        if (kind == MediaKind.PHOTO) {
+            // Decoding happens here: an undecodable photo is rejected before
+            // anything is stored. The original is re-encoded to strip metadata
+            // (EXIF GPS et cetera), so every stored photo key ends in .jpg.
+            ImageVariants.Variants variants = images.process(content);
+            String base = "listings/" + listingId + "/" + UUID.randomUUID();
+            storage.put(base + ".jpg", variants.original(), MediaTypes.JPEG);
+            storage.put(base + "-thumb.jpg", variants.thumb(), MediaTypes.JPEG);
+            storage.put(base + "-display.jpg", variants.display(), MediaTypes.JPEG);
+            urlKey = base + "-display.jpg";
+        } else {
+            String extension = MediaTypes.extensionOf(filename).orElseThrow();
+            urlKey = "listings/" + listingId + "/" + UUID.randomUUID() + "." + extension;
+            storage.put(urlKey, content, normalizedType);
+        }
         int sortOrder = nextSortOrder(listingId);
-        UUID mediaId = insertMedia(listingId, URL_PREFIX + key, kind, sortOrder);
-        return new MediaDto(mediaId, URL_PREFIX + key, null, kind.name(), sortOrder);
+        UUID mediaId = insertMedia(listingId, URL_PREFIX + urlKey, kind, sortOrder);
+        return new MediaDto(mediaId, URL_PREFIX + urlKey, null, kind.name(), sortOrder);
     }
 
     @Transactional
