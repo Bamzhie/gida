@@ -11,6 +11,7 @@ import { ListingCard } from "@/components/marketplace/listing-card";
 import { PropertyGallery } from "@/components/marketplace/property-gallery";
 import { getAmenityLabels, getListing, getSimilarListings } from "@/lib/listings";
 import { getFavoriteIdSet } from "@/lib/favorites";
+import { API_ORIGIN } from "@/lib/api-base";
 import { COST_LABELS, disclosedTotal, formatArea, toCardModel, toDetailModel } from "@/lib/listing-view";
 import { formatDate, formatListingStatus, formatPrice, formatPricePeriod } from "@/lib/utils";
 
@@ -61,8 +62,6 @@ export default async function ListingDetailPage({ params }: Props) {
   const recurringCosts = listing.costs.filter((cost) => cost.type === "SERVICE_CHARGE");
   const oneTimeCosts = listing.costs.filter((cost) => cost.type !== "SERVICE_CHARGE");
 
-  const photos = listing.media.filter((item) => item.kind === "PHOTO");
-  const otherMedia = listing.media.filter((item) => item.kind !== "PHOTO");
   const place = [listing.addressLine, listing.area, listing.state].filter(Boolean).join(", ");
   const area = listing.area ?? listing.state;
   const size = formatArea(listing.sizeSqm);
@@ -90,8 +89,8 @@ export default async function ListingDetailPage({ params }: Props) {
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
         <div className="space-y-6">
           <Card className="overflow-hidden">
-            {photos.length > 0 ? (
-              <PropertyGallery images={photos} title={listing.title} />
+            {listing.media.length > 0 ? (
+              <PropertyGallery media={listing.media} title={listing.title} mediaOrigin={API_ORIGIN} />
             ) : (
               <div className="relative h-72 overflow-hidden bg-secondary sm:h-96">
                 <PropertyArtwork propertyType={listing.propertyType} className="absolute inset-0 h-full w-full" />
@@ -108,21 +107,6 @@ export default async function ListingDetailPage({ params }: Props) {
                 </Badge>
               </div>
               <p className="mt-5 text-base leading-7 text-muted-foreground">{listing.description}</p>
-              {otherMedia.length > 0 && (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {otherMedia.map((item) => (
-                    <a
-                      key={item.url}
-                      href={item.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-full border border-input px-3 py-1 text-xs hover:bg-secondary"
-                    >
-                      {item.kind === "VIDEO" ? "Watch video" : "Floor plan"}
-                    </a>
-                  ))}
-                </div>
-              )}
             </CardContent>
           </Card>
 
