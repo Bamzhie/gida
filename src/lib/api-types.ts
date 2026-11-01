@@ -48,6 +48,46 @@ export type MediaDto = {
   sortOrder: number;
 };
 
+/** A media entry the owner manages: adds the id needed to delete and reorder. */
+export type ManagedMediaDto = MediaDto & { id: string };
+
+export type MediaOrderItemDto = {
+  id: string;
+  sortOrder: number;
+};
+
+export type Lifecycle = "DRAFT" | "PUBLISHED" | "PAUSED";
+
+export type ListingCreatedDto = {
+  id: string;
+  lifecycle: Lifecycle;
+};
+
+export type ListingRenewedDto = {
+  id: string;
+  expiresAt: string;
+};
+
+/** `GET /me/listings` row; the API infers SALE vs RENT from `pricePeriod`. */
+export type OwnerListingDto = {
+  id: string;
+  title: string;
+  lifecycle: Lifecycle;
+  availability: Availability;
+  price: number;
+  pricePeriod: PricePeriod | null;
+  createdAt: string;
+  publishedAt: string | null;
+};
+
+/** `GET /me/advertiser-summary` — explainable rollup for the advertiser dashboard. */
+export type AdvertiserSummaryDto = {
+  listingsByState: Record<string, number>;
+  totalEnquiries: number;
+  totalViewingRequests: number;
+  topListings: { listingId: string; title: string; enquiryCount: number }[];
+};
+
 export type AdvertiserDto = {
   id: string;
   name: string;

@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   ACCESS_COOKIE,
@@ -26,6 +27,12 @@ export type RefreshOutcome = { ok: true; session: Session } | { ok: false };
 type SpringInit = {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  token?: string | null;
+};
+
+type SpringFormInit = {
+  method: "POST" | "PUT" | "PATCH" | "DELETE";
+  form: FormData;
   token?: string | null;
 };
 
@@ -79,6 +86,70 @@ export async function springCall<T>(path: string, init: SpringInit): Promise<Spr
     return { ok: true, status: 204, data: undefined as T };
   }
   return { ok: true, status: response.status, data: (await response.json()) as T };
+}
+
+/**
+ * Multipart twin of `springCall`: forwards a `FormData` body so the browser's
+ * fetch sets the multipart boundary; no JSON content-type is sent. The type
+ * parameter is the JSON shape Spring replies with (e.g. an uploaded MediaDto).
+ */
+export async function springForm<T>(path: string, init: SpringFormInit): Promise<SpringResult<T>> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (init.token) headers.Authorization = `Bearer ${init.token}`;
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_ORIGIN}${API_PREFIX}${path}`, {
+      method: init.method,
+      headers,
+      body: init.form,
+      cache: "no-store",
+    });
+  } catch {
+    return {
+      ok: false,
+      status: 502,
+      problem: problem(502, "backend_unreachable", "The marketplace service is not reachable right now."),
+    };
+  }
+
+  if (!response.ok) {
+    return { ok: false, status: response.status, problem: await readProblem(response) };
+  }
+  if (response.status === 204) {
+    return { ok: true, status: 204, data: undefined as T };
+  }
+  return { ok: true, status: response.status, data: (await response.json()) as T };
+}
+
+export type DashboardGuard = { ok: true; token: string } | { ok: false; response: NextResponse };
+
+/** Origin + session gate shared by the dashboard listing routes. */
+export async function guardDashboardWrite(request: NextRequest): Promise<DashboardGuard> {
+  if (!originAllowed(request)) {
+    return {
+      ok: false,
+      response: problemResponse(403, "origin_not_allowed", "This action must be performed from gida.ng."),
+    };
+  }
+  const token = (await cookies()).get(ACCESS_COOKIE)?.value;
+  if (!token) {
+    return {
+      ok: false,
+      response: problemResponse(401, "signed_out", "Sign in to manage your listings."),
+    };
+  }
+  return { ok: true, token };
+}
+
+export type SpringFailure = Extract<SpringResult<unknown>, { ok: false }>;
+
+/** Forwards a Spring problem (or a backend-unreachable fallback) to the browser. */
+export function springErrorResponse(result: SpringFailure): NextResponse {
+  return NextResponse.json(result.problem ?? problem(result.status, "backend_unreachable", "Try again."), {
+    status: result.status,
+    headers: { "content-type": "application/problem+json" },
+  });
 }
 
 export function setSessionCookies(response: NextResponse, session: Session): void {
