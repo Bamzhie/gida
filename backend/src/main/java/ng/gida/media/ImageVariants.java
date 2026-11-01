@@ -11,6 +11,7 @@ import java.io.UncheckedIOException;
 import java.util.Iterator;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
@@ -31,12 +32,14 @@ public class ImageVariants {
 
     static final int THUMB_WIDTH = 400;
     static final int DISPLAY_WIDTH = 1280;
+    static final int MAX_DIMENSION = 8000;
     static final float JPEG_QUALITY = 0.8f;
 
     public record Variants(byte[] original, byte[] thumb, byte[] display) {
     }
 
     public Variants process(byte[] content) {
+        rejectDecompressionBombs(content);
         BufferedImage source;
         try {
             source = ImageIO.read(new ByteArrayInputStream(content));
@@ -49,6 +52,35 @@ public class ImageVariants {
         }
         return new Variants(render(source, source.getWidth()), render(source, THUMB_WIDTH),
                 render(source, DISPLAY_WIDTH));
+    }
+
+    /**
+     * Reads only the declared dimensions before any decode: a few bytes can
+     * declare a 30000×30000 image whose decode would exhaust the heap.
+     */
+    private static void rejectDecompressionBombs(byte[] content) {
+        ApiException invalid = new ApiException(HttpStatus.BAD_REQUEST, "invalid_image",
+                "The uploaded photo could not be decoded as an image");
+        try (var stream = ImageIO.createImageInputStream(new ByteArrayInputStream(content))) {
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
+            if (!readers.hasNext()) {
+                throw invalid;
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(stream);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_image",
+                            "Photos are limited to " + MAX_DIMENSION + " px per side");
+                }
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException e) {
+            throw invalid;
+        }
     }
 
     private static byte[] render(BufferedImage source, int maxWidth) {

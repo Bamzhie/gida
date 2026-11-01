@@ -274,6 +274,34 @@ class MediaUploadTest extends IntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void oversizedDimensionsAreRefusedBeforeDecode() throws Exception {
+        String token = registerAndLogin("agent@example.com", "AGENT");
+        UUID listingId = createListing(token, "lekki-phase-1");
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        BufferedImage huge = new BufferedImage(9000, 1, BufferedImage.TYPE_INT_RGB);
+        ImageIO.write(huge, "png", out);
+
+        upload(token, listingId, "PHOTO", "bomb.png", "image/png", out.toByteArray())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("https://gida.ng/errors/invalid_image"));
+    }
+
+    @Test
+    void symlinksInsideTheMediaDirectoryCannotEscape() throws Exception {
+        Path outside = Files.createTempFile("gida-escape", ".txt");
+        Files.writeString(outside, "secret");
+        Path link = MEDIA_DIR.resolve("listings-x");
+        Files.deleteIfExists(link);
+        Files.createSymbolicLink(link, outside.getParent());
+
+        assertThatThrownBy(() -> storage.get("listings-x/" + outside.getFileName()))
+                .isInstanceOf(IllegalArgumentException.class);
+        Files.deleteIfExists(link);
+        Files.deleteIfExists(outside);
+    }
+
     private ResultActions upload(String token, UUID listingId, String kind, String filename,
                                  String contentType, byte[] content) throws Exception {
         return mvc.perform(multipart("/api/v1/me/listings/{listingId}/media", listingId)

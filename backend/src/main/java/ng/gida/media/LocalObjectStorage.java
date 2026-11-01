@@ -22,11 +22,13 @@ import org.springframework.stereotype.Component;
 public class LocalObjectStorage implements ObjectStorage {
 
     private final Path root;
+    private final Path realRoot;
 
     public LocalObjectStorage(@Value("${GIDA_MEDIA_DIR:./data/media}") String directory) {
         this.root = Path.of(directory).toAbsolutePath().normalize();
         try {
             Files.createDirectories(root);
+            this.realRoot = root.toRealPath();
         } catch (IOException e) {
             throw new IllegalStateException("Cannot create the media directory " + root, e);
         }
@@ -83,6 +85,14 @@ public class LocalObjectStorage implements ObjectStorage {
         Path resolved = root.resolve(key).normalize();
         if (!resolved.startsWith(root)) {
             throw new IllegalArgumentException("Illegal storage key: " + key);
+        }
+        try {
+            if (Files.exists(resolved) && !resolved.toRealPath().startsWith(realRoot)) {
+                // a symlink planted inside the media directory must not escape the root
+                throw new IllegalArgumentException("Illegal storage key: " + key);
+            }
+        } catch (IOException e) {
+            throw new UncheckedStorageException("Cannot resolve the stored object " + key, e);
         }
         return resolved;
     }
