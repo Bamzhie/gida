@@ -134,6 +134,71 @@ public class ListingRepository {
                 .update();
     }
 
+    public UUID copyProperty(UUID sourcePropertyId) {
+        return jdbc.sql("""
+                        INSERT INTO properties
+                            (location_id, address_line, property_type, bedrooms, bathrooms,
+                             size_sqm, lot_size_sqm, year_built, parking, furnished, geom)
+                        SELECT location_id, address_line, property_type, bedrooms, bathrooms,
+                               size_sqm, lot_size_sqm, year_built, parking, furnished, geom
+                        FROM properties WHERE id = :sourceId
+                        RETURNING id
+                        """)
+                .param("sourceId", sourcePropertyId)
+                .query(UUID.class)
+                .single();
+    }
+
+    public void copyAmenities(UUID sourcePropertyId, UUID targetPropertyId) {
+        jdbc.sql("""
+                        INSERT INTO property_amenities (property_id, amenity_id)
+                        SELECT :targetId, amenity_id FROM property_amenities WHERE property_id = :sourceId
+                        """)
+                .param("sourceId", sourcePropertyId)
+                .param("targetId", targetPropertyId)
+                .update();
+    }
+
+    public UUID insertCopy(UUID sourceListingId, UUID propertyId, UUID advertiserId) {
+        return jdbc.sql("""
+                        INSERT INTO listings
+                            (property_id, advertiser_id, title, description, listing_type,
+                             category, price, price_period, availability, lifecycle)
+                        SELECT :propertyId, :advertiserId, left('Copy of ' || title, 200),
+                               description, listing_type, category, price, price_period,
+                               availability, 'DRAFT'
+                        FROM listings WHERE id = :sourceId
+                        RETURNING id
+                        """)
+                .param("sourceId", sourceListingId)
+                .param("propertyId", propertyId)
+                .param("advertiserId", advertiserId)
+                .query(UUID.class)
+                .single();
+    }
+
+    public void copyCosts(UUID sourceListingId, UUID targetListingId) {
+        jdbc.sql("""
+                        INSERT INTO listing_costs (listing_id, cost_type, amount, note)
+                        SELECT :targetId, cost_type, amount, note
+                        FROM listing_costs WHERE listing_id = :sourceId
+                        """)
+                .param("sourceId", sourceListingId)
+                .param("targetId", targetListingId)
+                .update();
+    }
+
+    public void copyMedia(UUID sourceListingId, UUID targetListingId) {
+        jdbc.sql("""
+                        INSERT INTO listing_media (listing_id, url, caption, kind, sort_order)
+                        SELECT :targetId, url, caption, kind, sort_order
+                        FROM listing_media WHERE listing_id = :sourceId
+                        """)
+                .param("sourceId", sourceListingId)
+                .param("targetId", targetListingId)
+                .update();
+    }
+
     public List<OwnerListingDto> findByAdvertiser(UUID advertiserId, int limit, int offset) {
         return jdbc.sql("""
                         SELECT id, title, lifecycle, availability, price, price_period,

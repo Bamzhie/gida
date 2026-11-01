@@ -50,6 +50,13 @@ public class AdvertiserController {
         listingService.publish(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
     }
 
+    @PostMapping("/me/listings/{id}/duplicate")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ListingCreated duplicate(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return listingService.duplicate(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
+    }
+
     @PostMapping("/listings/{id}/pause")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")

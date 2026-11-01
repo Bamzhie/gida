@@ -171,6 +171,17 @@ public class ListingService {
         listings.pause(listingId);
     }
 
+    @Transactional
+    public ListingCreated duplicate(UUID actorId, boolean admin, UUID listingId) {
+        ListingRow row = ownedRow(actorId, admin, listingId);
+        UUID propertyId = listings.copyProperty(row.propertyId());
+        listings.copyAmenities(row.propertyId(), propertyId);
+        UUID copyId = listings.insertCopy(listingId, propertyId, actorId);
+        listings.copyCosts(listingId, copyId);
+        listings.copyMedia(listingId, copyId);
+        return new ListingCreated(copyId, "DRAFT");
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<OwnerListingDto> ownListings(UUID advertiserId, Paging paging) {
         List<OwnerListingDto> items = listings.findByAdvertiser(advertiserId, paging.size(), paging.offset());
