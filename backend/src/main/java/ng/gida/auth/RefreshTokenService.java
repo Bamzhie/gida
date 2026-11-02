@@ -10,6 +10,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.UUID;
 import ng.gida.shared.ApiException;
+import ng.gida.users.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +21,13 @@ public class RefreshTokenService {
     public static final Duration REFRESH_TTL = Duration.ofDays(30);
 
     private final RefreshTokenRepository tokens;
+    private final UserRepository users;
     private final SecureRandom random = new SecureRandom();
     private final Clock clock = Clock.systemUTC();
 
-    public RefreshTokenService(RefreshTokenRepository tokens) {
+    public RefreshTokenService(RefreshTokenRepository tokens, UserRepository users) {
         this.tokens = tokens;
+        this.users = users;
     }
 
     @Transactional
@@ -37,6 +40,11 @@ public class RefreshTokenService {
     public Issued rotate(String presented) {
         RefreshTokenRepository.TokenRow row = tokens.findByHashForUpdate(hash(presented))
                 .orElseThrow(RefreshTokenService::invalid);
+        var user = users.findById(row.userId()).orElseThrow(RefreshTokenService::invalid);
+        if (!"ACTIVE".equals(user.status())) {
+            tokens.revoke(row.id());
+            throw new ApiException(HttpStatus.FORBIDDEN, "account_suspended", "This account is suspended");
+        }
         if (row.revokedAt() != null) {
             tokens.revokeFamily(row.familyId());
             throw new ApiException(HttpStatus.UNAUTHORIZED, "refresh_token_reused",
