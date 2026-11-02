@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, PauseCircle, Pencil, PlayCircle, RefreshCw, Tag } from "lucide-react";
+import { BadgeCheck, Copy, PauseCircle, Pencil, PlayCircle, RefreshCw, Send, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ListingRenewedDto, ListingType, Lifecycle } from "@/lib/api-types";
@@ -16,11 +16,16 @@ type ListingRowActionsProps = {
   listingType: ListingType;
 };
 
+type Action = "submit" | "resume" | "pause" | "confirm";
+
 /**
  * Row actions for the my-listings table. Transitions refresh the server table
  * on success (the established listing-card pattern); Spring's problem codes
- * surface as toasts. Publish covers both DRAFT and PAUSED — the API treats it
- * as the resume action for paused rows.
+ * surface as toasts.
+ *
+ * Submitting is not publishing: a draft or rejected listing goes to the review
+ * queue and only an admin can make it live, so no action here ever claims a
+ * listing is public when it is not.
  */
 export function ListingRowActions({ listingId, lifecycle, listingType }: ListingRowActionsProps) {
   const router = useRouter();
@@ -33,7 +38,7 @@ export function ListingRowActions({ listingId, lifecycle, listingType }: Listing
     return true;
   }
 
-  async function transition(action: "publish" | "pause") {
+  async function transition(action: Action) {
     setBusy(action);
     const response = await fetch(`/api/dashboard/listings/${listingId}/${action}`, { method: "POST" });
     setBusy(null);
@@ -42,7 +47,20 @@ export function ListingRowActions({ listingId, lifecycle, listingType }: Listing
       toast.error(listingProblemMessage(await response.json().catch(() => null)));
       return;
     }
-    toast.success(action === "publish" ? "The listing is live." : "The listing is paused.");
+    if (action === "submit") {
+      toast.success("Submitted for review. We'll publish it once it's checked.");
+    } else if (action === "confirm") {
+      const confirmed = (await response.json().catch(() => null)) as { confirmedAt?: string } | null;
+      toast.success(
+        confirmed?.confirmedAt
+          ? `Confirmed available as of ${formatDate(confirmed.confirmedAt)}.`
+          : "Confirmed available."
+      );
+    } else if (action === "resume") {
+      toast.success("The listing is live again.");
+    } else {
+      toast.success("The listing is paused.");
+    }
     router.refresh();
   }
 
@@ -91,20 +109,31 @@ export function ListingRowActions({ listingId, lifecycle, listingType }: Listing
     router.refresh();
   }
 
+  const editable = lifecycle === "DRAFT" || lifecycle === "REJECTED";
+  const inReview = lifecycle === "SUBMITTED" || lifecycle === "UNDER_REVIEW";
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
-      {lifecycle === "DRAFT" && (
-        <Button type="button" size="sm" onClick={() => transition("publish")} disabled={busy !== null} className="rounded-xl">
-          <PlayCircle /> Publish
+      {editable && (
+        <Button type="button" size="sm" onClick={() => transition("submit")} disabled={busy !== null} className="rounded-xl">
+          <Send /> Submit for review
         </Button>
       )}
-      {lifecycle === "PAUSED" && (
-        <Button type="button" size="sm" onClick={() => transition("publish")} disabled={busy !== null} className="rounded-xl">
-          <PlayCircle /> Resume
+      {editable && (
+        <Button type="button" variant="outline" size="sm" asChild className="rounded-xl">
+          <Link href={`/dashboard/listings/${listingId}/edit`}>
+            <Pencil /> Edit
+          </Link>
         </Button>
       )}
+
+      {inReview && <span className="text-xs text-muted-foreground">Awaiting review</span>}
+
       {lifecycle === "PUBLISHED" && (
         <>
+          <Button type="button" variant="outline" size="sm" onClick={() => transition("confirm")} disabled={busy !== null} className="rounded-xl">
+            <BadgeCheck /> Confirm available
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => transition("pause")} disabled={busy !== null} className="rounded-xl">
             <PauseCircle /> Pause
           </Button>
@@ -123,16 +152,22 @@ export function ListingRowActions({ listingId, lifecycle, listingType }: Listing
           </Button>
         </>
       )}
-      {lifecycle === "DRAFT" && (
-        <Button type="button" variant="outline" size="sm" asChild className="rounded-xl">
-          <Link href={`/dashboard/listings/${listingId}/edit`}>
-            <Pencil /> Edit
-          </Link>
+
+      {lifecycle === "PAUSED" && (
+        <Button type="button" size="sm" onClick={() => transition("resume")} disabled={busy !== null} className="rounded-xl">
+          <PlayCircle /> Resume
         </Button>
       )}
-      <Button type="button" variant="ghost" size="sm" onClick={duplicate} disabled={busy !== null} className="rounded-xl">
-        <Copy /> Duplicate
-      </Button>
+
+      {lifecycle === "SUSPENDED" && (
+        <span className="text-xs text-muted-foreground">Suspended — contact support</span>
+      )}
+
+      {(lifecycle === "PUBLISHED" || lifecycle === "PAUSED" || lifecycle === "EXPIRED") && (
+        <Button type="button" variant="ghost" size="sm" onClick={duplicate} disabled={busy !== null} className="rounded-xl">
+          <Copy /> Duplicate
+        </Button>
+      )}
     </div>
   );
 }

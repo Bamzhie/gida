@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Building2, Search } from "lucide-react";
+import { BadgeCheck, Building2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,7 +68,15 @@ export default async function AgentsPage({
                     {initialsOf(agent.name)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="truncate font-heading font-semibold">{agent.name}</h3>
+                    <h3 className="flex items-center gap-1.5 truncate font-heading font-semibold">
+                      <span className="truncate">{agent.name}</span>
+                      {agent.verified && (
+                        <BadgeCheck
+                          className="h-4 w-4 shrink-0 text-accent"
+                          aria-label="Identity verified by Gida"
+                        />
+                      )}
+                    </h3>
                     <p className="flex items-center gap-1 truncate text-sm text-muted-foreground">
                       <Building2 className="h-3 w-3" />{agent.agencyName ?? "Independent advertiser"}
                     </p>

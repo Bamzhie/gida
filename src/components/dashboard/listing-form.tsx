@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { PlayCircle, Plus, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -308,17 +308,31 @@ export function ListingForm({
     router.refresh();
   }
 
-  async function publish() {
+  async function submitForReview() {
     if (!listingId) return;
     setPublishing(true);
-    const response = await fetch(`/api/dashboard/listings/${listingId}/publish`, { method: "POST" });
+    const response = await fetch(`/api/dashboard/listings/${listingId}/submit`, { method: "POST" });
     setPublishing(false);
     if (requireSignIn(response.status)) return;
     if (!response.ok) {
       toast.error(listingProblemMessage(await response.json().catch(() => null)));
       return;
     }
-    toast.success(lifecycle === "PAUSED" ? "The listing is live again." : "Listing published.");
+    toast.success("Submitted for review. It goes live once a reviewer approves it.");
+    router.push("/dashboard/listings");
+  }
+
+  async function resume() {
+    if (!listingId) return;
+    setPublishing(true);
+    const response = await fetch(`/api/dashboard/listings/${listingId}/resume`, { method: "POST" });
+    setPublishing(false);
+    if (requireSignIn(response.status)) return;
+    if (!response.ok) {
+      toast.error(listingProblemMessage(await response.json().catch(() => null)));
+      return;
+    }
+    toast.success("The listing is live again.");
     router.refresh();
   }
 
@@ -751,14 +765,19 @@ export function ListingForm({
         <Button type="submit" disabled={submitting} className="rounded-xl">
           {mode === "create" ? "Save draft" : "Save changes"}
         </Button>
-        {mode === "edit" && (lifecycle === "DRAFT" || lifecycle === "PAUSED") && (
-          <Button type="button" variant="secondary" disabled={publishing} onClick={publish} className="rounded-xl">
-            {lifecycle === "PAUSED" ? "Resume publishing" : "Publish"}
+        {mode === "edit" && (lifecycle === "DRAFT" || lifecycle === "REJECTED") && (
+          <Button type="button" variant="secondary" disabled={publishing} onClick={submitForReview} className="rounded-xl">
+            <Send /> Submit for review
+          </Button>
+        )}
+        {mode === "edit" && lifecycle === "PAUSED" && (
+          <Button type="button" variant="secondary" disabled={publishing} onClick={resume} className="rounded-xl">
+            <PlayCircle /> Resume publishing
           </Button>
         )}
         {mode === "create" && (
           <p className="text-sm text-muted-foreground">
-            Saving creates a draft only — nothing goes public until you publish it.
+            Saving creates a draft only — nothing goes public until a reviewer approves it.
           </p>
         )}
       </div>
