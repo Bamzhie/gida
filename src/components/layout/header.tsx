@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Heart, LayoutDashboard, Menu, X } from "lucide-react";
+import { Building2, Heart, LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { useEffect, useState } from "react";
@@ -81,6 +81,7 @@ export default function Header() {
   }, []);
 
   const signedIn = session.status === "signed-in" && session.user !== null;
+  const isAdmin = session.user?.role === "ADMIN";
   const signInClass = cn("rounded-full", transparent && "text-white hover:bg-white/15 hover:text-white");
 
   return (
@@ -148,6 +149,14 @@ export default function Header() {
                   Dashboard
                 </Link>
               </Button>
+              {isAdmin && (
+                <Button variant="ghost" className={signInClass} asChild>
+                  <Link href="/admin/listings">
+                    <ShieldCheck className="h-4 w-4" />
+                    Admin
+                  </Link>
+                </Button>
+              )}
               <SignOutButton className={signInClass} />
             </>
           ) : session.status === "signed-out" ? (
@@ -208,14 +217,26 @@ export default function Header() {
               Saved properties
             </Link>
             {signedIn && (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-2 py-2 text-sm font-medium text-foreground"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </Link>
+              <>
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-2 py-2 text-sm font-medium text-foreground"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/admin/listings"
+                    className="flex items-center gap-2 py-2 text-sm font-medium text-foreground"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    Admin
+                  </Link>
+                )}
+              </>
             )}
             <div className="flex gap-2 pt-2">
               {signedIn ? (

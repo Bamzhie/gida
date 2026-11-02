@@ -47,6 +47,13 @@ next-env.d.ts
 
 # Private project docs and local agent config — never commit
 /docs/
+/.agents/
+/.codex/
+/.claude/
+/.cursor/
+/.gemini/
+/.windsurf/
+/.perch/
 /.opencode/
 /.zcodeignore
 /CHANGE-TRACKER.md
