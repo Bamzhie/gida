@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, MapPin } from "lucide-react";
 import { AdminPageHeading } from "@/components/admin/page-heading";
 import { getAdminListingQueue } from "@/lib/admin";
+import { adminListingHref } from "@/lib/admin-listing-url";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -102,83 +103,51 @@ export default async function AdminListingsPage({ searchParams }: Props) {
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card md:hidden">
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {queue.items.map((listing) => (
-              <li key={listing.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link href={`/admin/listings/${listing.id}`} className="font-medium leading-5 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      {listing.title}
-                    </Link>
-                    <p className="mt-1 text-sm text-muted-foreground">{listing.advertiserName}</p>
-                  </div>
-                  <Badge variant={LIFECYCLE_VARIANTS[listing.lifecycle] ?? "outline"} className="shrink-0">
-                    {listing.lifecycle.replace(/_/g, " ").toLowerCase()}
-                  </Badge>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <p className="font-semibold tabular-nums">{formatPrice(listing.price)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {[listing.area, listing.state].filter(Boolean).join(", ") || "No location"}
-                  </p>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>{listing.submittedAt ? `Submitted ${formatDate(listing.submittedAt)}` : `Created ${formatDate(listing.createdAt)}`}</span>
-                  {listing.confirmedAt && <span>Confirmed {formatDate(listing.confirmedAt)}</span>}
-                </div>
-                <Button asChild variant="ghost" size="sm" className="-ml-3 mt-2">
-                  <Link href={`/admin/listings/${listing.id}`}>Review listing <ArrowRight className="size-4" aria-hidden="true" /></Link>
+              <li key={listing.id}>
+                <Button asChild variant="ghost" className="h-auto w-full whitespace-normal rounded-2xl bg-transparent p-0 text-left text-card-foreground shadow-none hover:bg-transparent hover:text-card-foreground">
+                  <Link
+                    href={adminListingHref(listing)}
+                    className="group flex h-full min-h-52 flex-col rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h2 className="font-heading font-semibold leading-5 text-card-foreground group-hover:underline">{listing.title}</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {[listing.area, listing.state].filter(Boolean).join(", ") || "No location"}
+                        </p>
+                      </div>
+                      <Badge variant={LIFECYCLE_VARIANTS[listing.lifecycle] ?? "outline"} className="shrink-0">
+                        {listing.lifecycle.replace(/_/g, " ").toLowerCase()}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Advertiser</p>
+                        <p className="truncate font-medium text-card-foreground">{listing.advertiserName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{listing.advertiserEmail}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Price</p>
+                        <p className="font-semibold tabular-nums">{formatPrice(listing.price)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4 text-xs text-muted-foreground">
+                      <span>{listing.submittedAt ? `Submitted ${formatDate(listing.submittedAt)}` : `Created ${formatDate(listing.createdAt)}`}</span>
+                      {listing.confirmedAt && <span>Confirmed {formatDate(listing.confirmedAt)}</span>}
+                    </div>
+
+                    <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+                      Open review <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                    </span>
+                  </Link>
                 </Button>
               </li>
             ))}
           </ul>
-
-          <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card md:block">
-            <table className="w-full min-w-[54rem] text-sm">
-              <thead className="bg-secondary/60 text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">Listing</th>
-                  <th scope="col" className="px-4 py-3 font-medium">Advertiser</th>
-                  <th scope="col" className="px-4 py-3 font-medium">State</th>
-                  <th scope="col" className="px-4 py-3 font-medium">Price</th>
-                  <th scope="col" className="px-4 py-3 font-medium">Dates</th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">Review</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {queue.items.map((listing) => (
-                  <tr key={listing.id} className="align-top transition-colors hover:bg-secondary/25">
-                    <td className="px-4 py-4">
-                      <p className="font-medium">{listing.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {[listing.area, listing.state].filter(Boolean).join(", ") || "No location"}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p>{listing.advertiserName}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{listing.advertiserEmail}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <Badge variant={LIFECYCLE_VARIANTS[listing.lifecycle] ?? "outline"}>
-                        {listing.lifecycle.replace(/_/g, " ").toLowerCase()}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-4 font-medium tabular-nums">{formatPrice(listing.price)}</td>
-                    <td className="px-4 py-4 text-xs text-muted-foreground">
-                      {listing.submittedAt && <p>Submitted {formatDate(listing.submittedAt)}</p>}
-                      {listing.confirmedAt && <p>Confirmed {formatDate(listing.confirmedAt)}</p>}
-                      {!listing.submittedAt && !listing.confirmedAt && <p>Created {formatDate(listing.createdAt)}</p>}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/admin/listings/${listing.id}`}>Review <ArrowRight className="size-4" aria-hidden="true" /></Link>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
 
           {queue.pages > 1 && (
             <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">

@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminPageHeading } from "@/components/admin/page-heading";
+import { PropertyGallery } from "@/components/marketplace/property-gallery";
 import { ReviewActions } from "@/components/admin/review-actions";
 import { VerificationEditor } from "@/components/admin/verification-editor";
 import { getAdminListingDetail, getVerifications } from "@/lib/admin";
+import { adminListingIdFromSlug, isListingUuid } from "@/lib/admin-listing-url";
 import { API_ORIGIN } from "@/lib/api-base";
+import { getListing } from "@/lib/listings";
 import { COST_LABELS } from "@/lib/listing-view";
-import { resolveMediaUrl } from "@/lib/media";
 import { formatDate, formatListingStatus, formatPrice, formatPricePeriod } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -22,17 +26,18 @@ export const metadata: Metadata = {
 type Props = { params: Promise<{ id: string }> };
 
 export default async function AdminListingDetailPage({ params }: Props) {
-  const { id } = await params;
-  const detail = await getAdminListingDetail(id);
+  const { id: routeId } = await params;
+  const id = adminListingIdFromSlug(routeId) ?? (isListingUuid(routeId) ? routeId : null);
+  const detail = id ? await getAdminListingDetail(id) : null;
   if (!detail) notFound();
 
   const { listing, lifecycle, actions } = detail;
   const listingType = listing.pricePeriod ? "RENT" : "SALE";
   const period = formatPricePeriod({ listingType, pricePeriod: listing.pricePeriod });
-  const photos = listing.media.filter((item) => item.kind === "PHOTO");
-  const [verifications, advertiserVerifications] = await Promise.all([
+  const [verifications, advertiserVerifications, publicListing] = await Promise.all([
     getVerifications("LISTING", listing.id),
     getVerifications("ADVERTISER", listing.advertiser.id),
+    lifecycle === "PUBLISHED" ? getListing(listing.id).catch(() => null) : Promise.resolve(null),
   ]);
 
   return (
@@ -45,7 +50,26 @@ export default async function AdminListingDetailPage({ params }: Props) {
         eyebrow="Listing review"
         title={listing.title}
         description={[listing.addressLine, listing.area, listing.state].filter(Boolean).join(", ") || "No location given"}
-        action={<div className="sm:text-right"><Badge variant="warning">{lifecycle.replace(/_/g, " ").toLowerCase()}</Badge><p className="mt-2 text-xl font-bold text-primary">{formatPrice(listing.price)}</p><p className="text-sm text-muted-foreground">{period}</p></div>}
+        action={
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <Badge variant="warning">{lifecycle.replace(/_/g, " ").toLowerCase()}</Badge>
+            <div className="sm:text-right">
+              <p className="text-xl font-bold text-primary">{formatPrice(listing.price)}</p>
+              <p className="text-sm text-muted-foreground">{period}</p>
+            </div>
+            {publicListing ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/listings/${listing.id}`} target="_blank" rel="noopener noreferrer">
+                  View public listing <ArrowUpRight aria-hidden="true" />
+                </Link>
+              </Button>
+            ) : (
+              <Button type="button" size="sm" variant="outline" disabled>
+                {lifecycle === "PUBLISHED" ? "Not publicly available" : "Not public yet"}
+              </Button>
+            )}
+          </div>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)] lg:items-start">
@@ -56,10 +80,13 @@ export default async function AdminListingDetailPage({ params }: Props) {
               <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{listing.description}</p>
               <dl className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
                 <Fact label="Type" value={listing.propertyType} />
+                <Fact label="Category" value={listing.category.replace(/_/g, " ").toLowerCase()} />
                 <Fact label="For" value={listingType === "RENT" ? "Rent" : "Sale"} />
                 <Fact label="Bedrooms" value={listing.bedrooms?.toString() ?? "—"} />
                 <Fact label="Bathrooms" value={listing.bathrooms?.toString() ?? "—"} />
                 <Fact label="Size" value={listing.sizeSqm ? `${listing.sizeSqm} m²` : "—"} />
+                <Fact label="Lot size" value={listing.lotSizeSqm ? `${listing.lotSizeSqm} m²` : "—"} />
+                <Fact label="Year built" value={listing.yearBuilt?.toString() ?? "—"} />
                 <Fact label="Furnished" value={listing.furnished ? "Yes" : "No"} />
                 <Fact label="Parking" value={listing.parking?.toString() ?? "—"} />
                 <Fact label="Availability" value={formatListingStatus(listing.availability)} />
@@ -77,25 +104,11 @@ export default async function AdminListingDetailPage({ params }: Props) {
           <Card className="rounded-2xl">
             <CardContent className="pt-6">
               <h3 className="mb-3 font-heading text-lg font-semibold">Media ({listing.media.length})</h3>
-              {photos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No photos uploaded.</p>
+              {listing.media.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No photos, videos, or floor plans uploaded.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {photos.map((photo) => (
-                    // eslint-disable-next-line @next/next/no-img-element -- object-storage keys, not optimisable by next/image
-                    <img
-                      key={photo.url}
-                      src={resolveMediaUrl(API_ORIGIN, photo.url)}
-                      alt={photo.caption ?? listing.title}
-                      className="h-24 w-full rounded-lg object-cover"
-                    />
-                  ))}
-                </div>
+                <PropertyGallery media={listing.media} title={listing.title} mediaOrigin={API_ORIGIN} />
               )}
-              <p className="mt-3 text-xs text-muted-foreground">
-                {listing.media.filter((item) => item.kind === "VIDEO").length} video ·{" "}
-                {listing.media.filter((item) => item.kind === "FLOOR_PLAN").length} floor plan
-              </p>
             </CardContent>
           </Card>
 

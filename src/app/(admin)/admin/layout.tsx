@@ -92,7 +92,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               <p className="hidden text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground sm:block">Trust &amp; safety</p>
             </div>
             <div className="ml-auto flex items-center gap-3 sm:gap-5">
-              <Link href="/listings" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Link href="/listings" target="_blank" rel="noopener noreferrer" aria-label="Open marketplace in a new tab" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="hidden sm:inline">Marketplace</span>
                 <ArrowUpRight className="size-4" aria-hidden="true" />
               </Link>
