@@ -6,5 +6,6 @@ public record AdvertiserCardDto(
         String agencyName,
         String bio,
         String phone,
-        long listingCount) {
+        long listingCount,
+        boolean verified) {
 }
