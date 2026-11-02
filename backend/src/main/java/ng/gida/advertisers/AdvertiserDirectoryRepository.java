@@ -19,7 +19,10 @@ public class AdvertiserDirectoryRepository {
                      JOIN properties p ON p.id = l.property_id
                     WHERE l.advertiser_id = u.id
                       AND l.lifecycle = 'PUBLISHED'
-                      AND (l.expires_at IS NULL OR l.expires_at > now())) AS listing_count
+                      AND (l.expires_at IS NULL OR l.expires_at > now())) AS listing_count,
+                   EXISTS (SELECT 1 FROM verifications v WHERE v.subject_type='ADVERTISER'
+                       AND v.subject_id=u.id AND v.dimension IN ('IDENTITY','BUSINESS')
+                       AND v.state='VERIFIED') AS verified
             FROM users u
             LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
             WHERE u.role IN ('AGENT', 'ADMIN')
@@ -89,7 +92,8 @@ public class AdvertiserDirectoryRepository {
                         rs.getString("agency_name"),
                         rs.getString("bio"),
                         rs.getString("phone"),
-                        rs.getLong("listing_count")))
+                        rs.getLong("listing_count"),
+                        rs.getBoolean("verified")))
                 .list();
 
         return PageResponse.of(items, paging.page(), paging.size(), total);
