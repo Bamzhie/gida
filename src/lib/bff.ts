@@ -142,8 +142,31 @@ export async function guardDashboardWrite(request: NextRequest): Promise<Dashboa
   return { ok: true, token };
 }
 
-export type SpringFailure = Extract<SpringResult<unknown>, { ok: false }>;
+export type AdminGuard = { ok: true; token: string } | { ok: false; response: NextResponse };
 
+/** Origin + ADMIN session gate shared by the admin routes. */
+export async function guardAdmin(request: NextRequest): Promise<AdminGuard> {
+  if (!originAllowed(request)) {
+    return {
+      ok: false,
+      response: problemResponse(403, "origin_not_allowed", "This action must be performed from gida.ng."),
+    };
+  }
+  const token = (await cookies()).get(ACCESS_COOKIE)?.value;
+  if (!token) {
+    return { ok: false, response: problemResponse(401, "signed_out", "Sign in to review the marketplace.") };
+  }
+  const user = await springCall<AuthUser>("/auth/me", { method: "GET", token });
+  if (!user.ok) {
+    return { ok: false, response: problemResponse(401, "signed_out", "Sign in to review the marketplace.") };
+  }
+  if (user.data.role !== "ADMIN") {
+    return { ok: false, response: problemResponse(403, "forbidden", "Admin access is required.") };
+  }
+  return { ok: true, token };
+}
+
+export type SpringFailure = Extract<SpringResult<unknown>, { ok: false }>;
 /** Forwards a Spring problem (or a backend-unreachable fallback) to the browser. */
 export function springErrorResponse(result: SpringFailure): NextResponse {
   return NextResponse.json(result.problem ?? problem(result.status, "backend_unreachable", "Try again."), {

@@ -56,7 +56,15 @@ export type MediaOrderItemDto = {
   sortOrder: number;
 };
 
-export type Lifecycle = "DRAFT" | "PUBLISHED" | "PAUSED";
+export type Lifecycle =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "PUBLISHED"
+  | "PAUSED"
+  | "EXPIRED"
+  | "REJECTED"
+  | "SUSPENDED";
 
 export type ListingCreatedDto = {
   id: string;
@@ -78,6 +86,8 @@ export type OwnerListingDto = {
   pricePeriod: PricePeriod | null;
   createdAt: string;
   publishedAt: string | null;
+  /** Latest rejection or correction request, so the owner knows why it is back in draft. */
+  reviewNote: string | null;
 };
 
 /** `GET /me/advertiser-summary` — explainable rollup for the advertiser dashboard. */
@@ -102,6 +112,7 @@ export type AdvertiserCardDto = {
   bio: string | null;
   phone: string | null;
   listingCount: number;
+  verified: boolean;
 };
 
 export type ListingDetailDto = {
@@ -188,6 +199,102 @@ export type MatchingRequestDto = Omit<PropertyRequestDto, "status" | "name" | "c
 };
 
 export type RequestCreatedDto = { id: string; status: "OPEN" | "CLOSED"; createdAt: string };
+
+export type ModerationActionDto = {
+  id: string;
+  action:
+    | "APPROVE"
+    | "REJECT"
+    | "REQUEST_CORRECTIONS"
+    | "SUSPEND_LISTING"
+    | "REINSTATE_LISTING"
+    | "FLAG_STALE"
+    | "SUSPEND_USER"
+    | "REINSTATE_USER"
+    | "RESOLVE_REPORT"
+    | "DISMISS_REPORT"
+    | "VERIFY";
+  targetType: "LISTING" | "USER" | "REPORT";
+  targetId: string;
+  actorId: string;
+  actorName: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type AdminListingDto = {
+  id: string;
+  title: string;
+  lifecycle: Lifecycle;
+  availability: Availability;
+  price: number;
+  pricePeriod: PricePeriod | null;
+  advertiserId: string;
+  advertiserName: string;
+  advertiserEmail: string;
+  area: string | null;
+  state: string | null;
+  submittedAt: string | null;
+  confirmedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminListingDetail = {
+  listing: ListingDetailDto;
+  actions: ModerationActionDto[];
+};
+
+export type AdminUserDto = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  status: "ACTIVE" | "SUSPENDED";
+  createdAt: string;
+};
+
+export type ReportReason = "FRAUD" | "WRONG_PRICE" | "UNAVAILABLE" | "DUPLICATE" | "OFFENSIVE" | "OTHER";
+
+export type AdminReportDto = {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  reporterId: string;
+  reporterEmail: string;
+  reason: ReportReason;
+  details: string | null;
+  status: "OPEN" | "RESOLVED" | "DISMISSED";
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+};
+
+export type VerificationDimension =
+  | "IDENTITY"
+  | "BUSINESS"
+  | "REGULATORY"
+  | "PROPERTY_EXISTENCE"
+  | "LOCATION"
+  | "AUTHORITY"
+  | "PRICE"
+  | "AVAILABILITY"
+  | "MEDIA_FRESHNESS";
+
+export type VerificationDto = {
+  dimension: VerificationDimension;
+  state: "UNVERIFIED" | "PENDING" | "VERIFIED" | "FAILED";
+  evidenceRef: string | null;
+  notes: string | null;
+  updatedAt: string;
+};
+
+export type VerificationSummary = {
+  advertiserVerified: boolean;
+  propertyVerified: boolean;
+  locationVerified: boolean;
+  priceVerified: boolean;
+};
 
 export type AuthUser = {
   id: string;

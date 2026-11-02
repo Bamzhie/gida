@@ -17,6 +17,7 @@ import type {
   ListingCategory,
   ListingCreatedDto,
   ListingType,
+  Lifecycle,
   LocationDto,
   PricePeriod,
   PropertyType,
@@ -104,7 +105,7 @@ const COUNT_PATTERN = /^\d+$/;
 type ListingFormProps = {
   mode: "create" | "edit";
   listingId?: string;
-  lifecycle: "DRAFT" | "PUBLISHED" | "PAUSED" | null;
+  lifecycle: Lifecycle | null;
   /** True when the API locks property facts, costs and media (published or unknown detail). */
   structureLocked: boolean;
   /** False when the saved description cannot be loaded, so blank means "keep it". */

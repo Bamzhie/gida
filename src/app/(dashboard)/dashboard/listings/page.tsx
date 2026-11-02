@@ -19,8 +19,13 @@ export const metadata: Metadata = {
 
 const LIFECYCLE_BADGES: Record<OwnerListingDto["lifecycle"], { label: string; variant: "secondary" | "success" | "warning" }> = {
   DRAFT: { label: "Draft", variant: "secondary" },
+  SUBMITTED: { label: "In review", variant: "warning" },
+  UNDER_REVIEW: { label: "In review", variant: "warning" },
   PUBLISHED: { label: "Live", variant: "success" },
   PAUSED: { label: "Paused", variant: "warning" },
+  EXPIRED: { label: "Expired", variant: "secondary" },
+  REJECTED: { label: "Rejected", variant: "secondary" },
+  SUSPENDED: { label: "Suspended", variant: "secondary" },
 };
 
 export default async function MyListingsPage() {
