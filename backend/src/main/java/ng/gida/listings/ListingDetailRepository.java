@@ -56,7 +56,7 @@ public class ListingDetailRepository {
                         JOIN users u ON u.id = l.advertiser_id
                         LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
                         WHERE l.id = :id
-                        """ + (admin ? "" : " AND l.lifecycle='PUBLISHED' AND (l.expires_at IS NULL OR l.expires_at > now())"))
+                        """ + (admin ? "" : " AND l.lifecycle='PUBLISHED' AND (l.expires_at IS NULL OR l.expires_at > now()) AND u.status='ACTIVE'"))
                 .param("id", listingId)
                 .query(this::mapDetail)
                 .optional();

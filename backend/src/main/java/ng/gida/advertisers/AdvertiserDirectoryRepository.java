@@ -25,14 +25,14 @@ public class AdvertiserDirectoryRepository {
                        AND v.state='VERIFIED') AS verified
             FROM users u
             LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
-            WHERE u.role = 'AGENT'
+            WHERE u.role = 'AGENT' AND u.status = 'ACTIVE'
             """;
 
     private static final String COUNT = """
             SELECT count(*)
             FROM users u
             LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
-            WHERE u.role = 'AGENT'
+            WHERE u.role = 'AGENT' AND u.status = 'ACTIVE'
             """;
 
     private final JdbcClient jdbc;

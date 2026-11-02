@@ -9,8 +9,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class FavoriteRepository {
 
-    private static final String VISIBLE =
-            "lifecycle = 'PUBLISHED' AND (expires_at IS NULL OR expires_at > now())";
+    private static final String VISIBLE = """
+            lifecycle = 'PUBLISHED'
+            AND (expires_at IS NULL OR expires_at > now())
+            AND EXISTS (SELECT 1 FROM users u WHERE u.id = listings.advertiser_id AND u.status = 'ACTIVE')
+            """;
 
     private final JdbcClient jdbc;
 

@@ -63,6 +63,36 @@ class AdminUserSuspensionTest extends IntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/account_suspended"));
     }
+
+    @Test
+    void suspendingAnAdvertiserHidesTheirListingsAndDirectoryProfile() throws Exception {
+        String owner = registerAndLogin("public-agent@example.com", "AGENT");
+        UUID id = jdbc.sql("SELECT id FROM users WHERE email='public-agent@example.com'")
+                .query(UUID.class).single();
+        UUID listing = createListing(owner, "lekki-phase-1");
+        publishListing(owner, listing);
+
+        mvc.perform(get("/api/v1/listings").param("advertiser", id.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
+        mvc.perform(get("/api/v1/listings/{id}", listing))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/advertisers").param("q", "Test Agent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
+
+        act(id, "suspend", "{\"reason\":\"Fraud investigation\"}")
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/v1/listings").param("advertiser", id.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/listings/{id}", listing))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/advertisers").param("q", "Test Agent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+    }
     @Test
     void suspendRequiresAReasonAndRejectsSelfSuspension() throws Exception {
         UUID id = target();

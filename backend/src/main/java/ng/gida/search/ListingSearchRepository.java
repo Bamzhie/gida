@@ -52,8 +52,11 @@ public class ListingSearchRepository {
             ) img ON true
             """;
 
-    private static final String VISIBLE =
-            "l.lifecycle = 'PUBLISHED' AND (l.expires_at IS NULL OR l.expires_at > now())";
+    private static final String VISIBLE = """
+            l.lifecycle = 'PUBLISHED'
+            AND (l.expires_at IS NULL OR l.expires_at > now())
+            AND EXISTS (SELECT 1 FROM users u WHERE u.id = l.advertiser_id AND u.status = 'ACTIVE')
+            """;
 
     private final JdbcClient jdbc;
 
