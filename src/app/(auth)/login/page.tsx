@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Building2, Loader2 } from "lucide-react";
@@ -12,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { ProblemDetail } from "@/lib/api-types";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -20,8 +18,9 @@ export default function LoginPage() {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    let res: Response;
     try {
-      const res = await fetch("/api/auth/login", {
+      res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -29,24 +28,23 @@ export default function LoginPage() {
           password: formData.get("password"),
         }),
       });
-
-      if (!res.ok) {
-        const problem = (await res.json().catch(() => null)) as ProblemDetail | null;
-        toast.error(problem?.detail ?? "We couldn't sign you in. Check your details or try again later.");
-        return;
-      }
-
-      window.dispatchEvent(new Event("gida:auth-changed"));
-      toast.success("Welcome back!");
-      const raw = new URL(window.location.search).searchParams.get("next");
-      const target = raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
-      router.push(target);
-      router.refresh();
-    } catch {
+    } catch (error) {
+      console.error("The browser could not reach the Gida sign-in endpoint.", error);
       toast.error("Could not reach the sign-in service. Please try again.");
-    } finally {
       setLoading(false);
+      return;
     }
+
+    if (!res.ok) {
+      const problem = (await res.json().catch(() => null)) as ProblemDetail | null;
+      toast.error(problem?.detail ?? "We couldn't sign you in. Check your details or try again later.");
+      setLoading(false);
+      return;
+    }
+
+    const raw = new URL(window.location.href).searchParams.get("next");
+    const target = raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
+    window.location.assign(target);
   }
 
   return (

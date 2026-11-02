@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
-import Header from "@/components/layout/header";
-import Footer from "@/components/layout/footer";
+import { SiteChrome } from "@/components/layout/site-chrome";
 import { Toaster } from "sonner";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
@@ -32,12 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body
         className={`${heading.variable} ${body.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
       >
-        <Header />
-        <a href="#main-content" className="sr-only z-[100] rounded-md bg-background px-4 py-3 text-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:ring-2 focus:ring-ring">
-          Skip to content
-        </a>
-        <main id="main-content" tabIndex={-1} className="min-h-[calc(100vh-5rem)] outline-none">{children}</main>
-        <Footer />
+        <SiteChrome>{children}</SiteChrome>
         <Toaster position="top-right" richColors />
       </body>
     </html>

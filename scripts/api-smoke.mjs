@@ -10,12 +10,17 @@ try {
   }
 } catch {}
 
+if (!process.env.SMOKE_ADMIN_PASSWORD) {
+  console.error("Set SMOKE_ADMIN_PASSWORD in backend/.env (see backend/.env.example) before running the moderation smoke checks.");
+  process.exit(1);
+}
+
 const API = `${(process.env.API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "")}/api/v1`;
 // Spring serves stored media outside the versioned API, at /media/{key}.
 const SPRING = API.replace(/\/api\/v1$/, "");
 const APP = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const LOCATION_KINDS = new Set(["STATE", "LGA", "AREA", "ESTATE", "LANDMARK"]);
-const LIFECYCLE_STATES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "PUBLISHED", "PAUSED", "EXPIRED", "REJECTED"];
+const LIFECYCLE_STATES = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "PUBLISHED", "PAUSED", "EXPIRED", "REJECTED", "SUSPENDED"];
 
 let passed = 0;
 const failures = [];
@@ -241,6 +246,18 @@ async function main() {
     replay.status === 401 && problemCode(replay.body) === "refresh_token_reused",
     `${replay.status} ${problemCode(replay.body)}`
   );
+
+  const adminEmail = process.env.SMOKE_ADMIN_EMAIL ?? "admin@gida.local";
+  const adminLogin = await json("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: adminEmail, password: process.env.SMOKE_ADMIN_PASSWORD }),
+  });
+  check("the seeded admin can sign in", adminLogin.status === 200 && typeof adminLogin.body?.accessToken === "string", String(adminLogin.status));
+  const adminAuth = { Authorization: `Bearer ${adminLogin.body?.accessToken}` };
+  const plainUserAdminQueue = await json("/admin/listings", { headers: { Authorization: `Bearer ${session.accessToken}` } });
+  const anonymousAdminQueue = await json("/admin/listings");
+  check("a plain user is refused the admin listing queue", plainUserAdminQueue.status === 403, String(plainUserAdminQueue.status));
+  check("an anonymous caller is refused the admin listing queue", anonymousAdminQueue.status === 401 && Boolean(anonymousAdminQueue.body?.type), String(anonymousAdminQueue.status));
 
   const logout = await json("/auth/logout", {
     method: "POST",
@@ -503,8 +520,12 @@ async function main() {
     String(served.status)
   );
 
-  const published = await json(`/listings/${listingId}/publish`, { method: "POST", headers: advertiserAuth });
-  check("publish returns 204", published.status === 204, String(published.status));
+  const submitted = await json(`/me/listings/${listingId}/submit`, { method: "POST", headers: advertiserAuth });
+  check("submit returns the listing id and SUBMITTED lifecycle", submitted.status === 200 && submitted.body?.id === listingId && submitted.body?.lifecycle === "SUBMITTED", `${submitted.status} ${submitted.body?.lifecycle}`);
+  const hiddenBeforeReview = await json(`/listings/${listingId}`);
+  check("a submitted listing stays private before review", hiddenBeforeReview.status === 404, String(hiddenBeforeReview.status));
+  const approved = await json(`/admin/listings/${listingId}/approve`, { method: "POST", headers: adminAuth });
+  check("admin approval returns 204", approved.status === 204, String(approved.status));
   const publicDetail = await json(`/listings/${listingId}`);
   check(
     "the public detail carries the uploaded photo",
@@ -531,7 +552,7 @@ async function main() {
   const summary = await json("/me/advertiser-summary", { headers: advertiserAuth });
   const states = summary.body?.listingsByState ?? {};
   check(
-    "the summary spans all seven lifecycle states and counts enquiries",
+    "the summary spans all eight lifecycle states and counts enquiries",
     summary.status === 200 && LIFECYCLE_STATES.every((state) => state in states) && typeof summary.body?.totalEnquiries === "number",
     `${summary.status} ${Object.keys(states).join(",")}`
   );
@@ -542,6 +563,92 @@ async function main() {
     locked.status === 422 && problemCode(locked.body) === "listing_locked",
     `${locked.status} ${problemCode(locked.body)}`
   );
+
+  section("Moderation and trust");
+  const resubmitted = await json(`/me/listings/${listingId}/confirm`, { method: "POST", headers: advertiserAuth });
+  const confirmedAt = Date.parse(resubmitted.body?.confirmedAt ?? "");
+  check("availability confirmation returns a recent confirmedAt", resubmitted.status === 200 && Number.isFinite(confirmedAt) && Math.abs(Date.now() - confirmedAt) < 5 * 60 * 1000, String(resubmitted.status));
+
+  const staleQueue = await json("/admin/listings?staleDays=30", { headers: adminAuth });
+  check("admin stale listing queue returns a page", staleQueue.status === 200 && Array.isArray(staleQueue.body?.items), String(staleQueue.status));
+  const adminDetail = await json(`/admin/listings/${listingId}`, { headers: adminAuth });
+  check("admin listing detail includes lifecycle and action history",
+    adminDetail.status === 200 && adminDetail.body?.lifecycle === "PUBLISHED" &&
+      adminDetail.body?.listing?.id === listingId &&
+      Array.isArray(adminDetail.body?.actions) &&
+      adminDetail.body.actions.some((action) => action.action === "APPROVE"),
+    String(adminDetail.status));
+  const flaggedStale = await json(`/admin/listings/${listingId}/flag-stale`, {
+    method: "POST", headers: adminAuth,
+  });
+  check("admin can flag a published listing as stale", flaggedStale.status === 204, String(flaggedStale.status));
+
+  const secondListing = await json("/listings", { method: "POST", headers: advertiserAuth, body: JSON.stringify({ ...rentFixture, title: "A second home in lekki-phase-1" }) });
+  const secondId = secondListing.body?.id;
+  const secondSubmit = await json(`/me/listings/${secondId}/submit`, { method: "POST", headers: advertiserAuth });
+  const rejected = await json(`/admin/listings/${secondId}/reject`, { method: "POST", headers: adminAuth, body: JSON.stringify({ reason: "Please correct the address details." }) });
+  const ownerRows = await json("/me/listings", { headers: advertiserAuth });
+  check("admin can reject a submitted listing with a reason", secondSubmit.status === 200 && rejected.status === 204, `${secondSubmit.status}/${rejected.status}`);
+  check("owner listing row exposes the review note", (ownerRows.body?.items ?? []).some((item) => item.id === secondId && item.reviewNote === "Please correct the address details."));
+  check("rejected listing remains private", (await json(`/listings/${secondId}`)).status === 404);
+  const secondResubmit = await json(`/me/listings/${secondId}/submit`, { method: "POST", headers: advertiserAuth });
+  const corrections = await json(`/admin/listings/${secondId}/request-corrections`, { method: "POST", headers: adminAuth, body: JSON.stringify({ reason: "Add a current availability note." }) });
+  const afterCorrections = await json("/me/listings", { headers: advertiserAuth });
+  check("rejected listing can resubmit and return to DRAFT on corrections", secondResubmit.status === 200 && corrections.status === 204 && (afterCorrections.body?.items ?? []).some((item) => item.id === secondId && item.lifecycle === "DRAFT"), `${secondResubmit.status}/${corrections.status}`);
+
+  const suspendedListing = await json(`/admin/listings/${listingId}/suspend`, { method: "POST", headers: adminAuth, body: JSON.stringify({ reason: "Temporary review hold." }) });
+  const hiddenWhileSuspended = await json(`/listings/${listingId}`);
+  const resumeWhileSuspended = await json(`/me/listings/${listingId}/resume`, { method: "POST", headers: advertiserAuth });
+  const reinstatedListing = await json(`/admin/listings/${listingId}/reinstate`, { method: "POST", headers: adminAuth });
+  const resumeAfterReinstate = await json(`/me/listings/${listingId}/resume`, { method: "POST", headers: advertiserAuth });
+  check("suspended listing is hidden and cannot be resumed by its owner", suspendedListing.status === 204 && hiddenWhileSuspended.status === 404 && resumeWhileSuspended.status === 409, `${suspendedListing.status}/${hiddenWhileSuspended.status}/${resumeWhileSuspended.status}`);
+  check("reinstate returns listing to PAUSED so the owner can resume", reinstatedListing.status === 204 && resumeAfterReinstate.status === 204, `${reinstatedListing.status}/${resumeAfterReinstate.status}`);
+
+  const reportUserEmail = `smoke-report-${Date.now()}@example.com`;
+  const reportUserPassword = "smoke-" + Math.random().toString(36).slice(2, 8) + "Aa1!";
+  const reportUser = await json("/auth/register", { method: "POST", body: JSON.stringify({ name: "Smoke Reporter", email: reportUserEmail, password: reportUserPassword, phone: "+2348000000002", role: "USER" }) });
+  const reportLogin = await json("/auth/login", { method: "POST", body: JSON.stringify({ email: reportUserEmail, password: reportUserPassword }) });
+  const reportUserAuth = { Authorization: `Bearer ${reportLogin.body?.accessToken ?? ""}` };
+  check("a new seeker can register and sign in to report", reportUser.status === 201 && reportLogin.status === 200, `${reportUser.status}/${reportLogin.status}`);
+  const report = await json(`/listings/${listingId}/reports`, { method: "POST", headers: reportUserAuth, body: JSON.stringify({ reason: "WRONG_PRICE", details: "The advertised amount does not match the current quote." }) });
+  const duplicateReport = await json(`/listings/${listingId}/reports`, { method: "POST", headers: reportUserAuth, body: JSON.stringify({ reason: "WRONG_PRICE" }) });
+  const reportQueue = await json("/admin/reports?status=OPEN", { headers: adminAuth });
+  const reportId = report.body?.id;
+  check("a signed-in seeker can report a published listing once", report.status === 201 && typeof report.body?.id === "string" && report.body?.status === "OPEN" && duplicateReport.status === 409, `${report.status}/${duplicateReport.status}`);
+  check("admin report queue includes the new report", reportQueue.status === 200 && (reportQueue.body?.items ?? []).some((item) => item.id === reportId), String(reportQueue.status));
+  const resolvedReport = await json(`/admin/reports/${reportId}/resolve`, { method: "POST", headers: adminAuth, body: JSON.stringify({ outcome: "RESOLVED", note: "Reviewed against the advertiser's current quote." }) });
+  const resolvedAgain = await json(`/admin/reports/${reportId}/resolve`, { method: "POST", headers: adminAuth, body: JSON.stringify({ outcome: "RESOLVED" }) });
+  check("admin can resolve a report only once", resolvedReport.status === 204 && resolvedAgain.status === 409, `${resolvedReport.status}/${resolvedAgain.status}`);
+
+  const priceVerification = await json("/admin/verifications", { method: "PUT", headers: adminAuth, body: JSON.stringify({ subjectType: "LISTING", subjectId: listingId, dimension: "PRICE", state: "VERIFIED", evidenceRef: "smoke:price", notes: "Confirmed in smoke." }) });
+  const listingVerifications = await json(`/admin/verifications?subjectType=LISTING&subjectId=${listingId}`, { headers: adminAuth });
+  check("admin verification read zero-fills all nine dimensions",
+    listingVerifications.status === 200 && listingVerifications.body?.length === 9 &&
+      listingVerifications.body.some((item) => item.dimension === "PRICE" && item.state === "VERIFIED") &&
+      listingVerifications.body.some((item) => item.dimension === "IDENTITY" && item.state === "UNVERIFIED"),
+    String(listingVerifications.status));
+  const publicVerification = await json(`/listings/${listingId}/verification`);
+  check("verified PRICE is reflected in the public four-boolean summary", priceVerification.status === 200 && publicVerification.status === 200 && publicVerification.body?.priceVerified === true, `${priceVerification.status}/${publicVerification.status}`);
+  const identityVerification = await json("/admin/verifications", { method: "PUT", headers: adminAuth, body: JSON.stringify({ subjectType: "ADVERTISER", subjectId: advertiserRegister.body?.id, dimension: "IDENTITY", state: "VERIFIED", evidenceRef: "smoke:identity", notes: "Confirmed in smoke." }) });
+  const advertiserVerifications = await json(`/admin/verifications?subjectType=ADVERTISER&subjectId=${advertiserRegister.body?.id}`, { headers: adminAuth });
+  check("admin can read the advertiser verification record",
+    advertiserVerifications.status === 200 && advertiserVerifications.body?.some((item) => item.dimension === "IDENTITY" && item.state === "VERIFIED"),
+    String(advertiserVerifications.status));
+  const verifiedDirectory = await json("/advertisers?size=100");
+  check("verified advertiser appears verified in the public directory", identityVerification.status === 200 && (verifiedDirectory.body?.items ?? []).some((item) => item.id === advertiserRegister.body?.id && item.verified === true), String(identityVerification.status));
+
+  const adminUsers = await json(`/admin/users?q=${encodeURIComponent(advertiserEmail)}&status=ACTIVE`, { headers: adminAuth });
+  check("admin user search finds the active advertiser",
+    adminUsers.status === 200 && (adminUsers.body?.items ?? []).some((item) => item.id === advertiserRegister.body?.id && item.status === "ACTIVE"),
+    String(adminUsers.status));
+  const suspendedAgent = await json(`/admin/users/${advertiserRegister.body?.id}/suspend`, { method: "POST", headers: adminAuth, body: JSON.stringify({ reason: "Smoke suspension check." }) });
+  const suspendedLogin = await json("/auth/login", { method: "POST", body: JSON.stringify({ email: advertiserEmail, password: advertiserPassword }) });
+  const suspendedListingDetail = await json(`/listings/${listingId}`);
+  const suspendedDirectory = await json("/advertisers?size=100");
+  const reinstatedAgent = await json(`/admin/users/${advertiserRegister.body?.id}/reinstate`, { method: "POST", headers: adminAuth });
+  const reinstatedLogin = await json("/auth/login", { method: "POST", body: JSON.stringify({ email: advertiserEmail, password: advertiserPassword }) });
+  check("suspended agent cannot sign in and can sign in after reinstatement", suspendedAgent.status === 204 && suspendedLogin.status === 403 && problemCode(suspendedLogin.body) === "account_suspended" && reinstatedAgent.status === 204 && reinstatedLogin.status === 200, `${suspendedAgent.status}/${suspendedLogin.status}/${reinstatedAgent.status}/${reinstatedLogin.status}`);
+  check("suspending an advertiser hides the listing and directory profile", suspendedListingDetail.status === 404 && !(suspendedDirectory.body?.items ?? []).some((item) => item.id === advertiserRegister.body?.id), `${suspendedListingDetail.status}/${suspendedDirectory.status}`);
 
   section("Rendered pages");
   const landing = await app("/");
