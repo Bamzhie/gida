@@ -9,8 +9,12 @@ import { ListingActions } from "@/components/marketplace/listing-actions";
 import { PropertyArtwork } from "@/components/marketplace/property-artwork";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { PropertyGallery } from "@/components/marketplace/property-gallery";
+import { ReportListingDialog } from "@/components/marketplace/report-listing-dialog";
+import { VerificationBadges } from "@/components/marketplace/verification-badges";
 import { getAmenityLabels, getListing, getSimilarListings } from "@/lib/listings";
 import { getFavoriteIdSet } from "@/lib/favorites";
+import { getVerificationSummary } from "@/lib/verification";
+import { getCurrentUser } from "@/lib/session";
 import { API_ORIGIN } from "@/lib/api-base";
 import { COST_LABELS, disclosedTotal, formatArea, toCardModel, toDetailModel } from "@/lib/listing-view";
 import { formatDate, formatListingStatus, formatPrice, formatPricePeriod } from "@/lib/utils";
@@ -50,10 +54,12 @@ export default async function ListingDetailPage({ params }: Props) {
   if (!dto) notFound();
 
   const listing = toDetailModel(dto);
-  const [amenityLabels, similarDtos, favorites] = await Promise.all([
+  const [amenityLabels, similarDtos, favorites, verification, viewer] = await Promise.all([
     getAmenityLabels(),
     getSimilarListings(id, 3).catch(() => []),
     getFavoriteIdSet(),
+    getVerificationSummary(id),
+    getCurrentUser(),
   ]);
   const similar = similarDtos.map(toCardModel);
 
@@ -79,6 +85,7 @@ export default async function ListingDetailPage({ params }: Props) {
             <MapPin className="h-4 w-4" />
             {place || "Lagos"}
           </p>
+          <VerificationBadges summary={verification} className="mt-3 flex flex-wrap items-center gap-2" />
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-primary">{formatPrice(listing.price)}</p>
@@ -222,6 +229,14 @@ export default async function ListingDetailPage({ params }: Props) {
                     Listed until {formatDate(listing.expiresAt)}
                   </div>
                 )}
+                <div className="border-t border-border pt-3">
+                  <ReportListingDialog
+                    listingId={listing.id}
+                    listingTitle={listing.title}
+                    signedIn={viewer !== null}
+                    returnPath={`/listings/${listing.id}`}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

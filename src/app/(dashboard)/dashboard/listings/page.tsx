@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "My listings",
-  description: "Manage the listings you publish on Gida.",
+  description: "Manage the listings you advertise on Gida.",
 };
 
 const LIFECYCLE_BADGES: Record<OwnerListingDto["lifecycle"], { label: string; variant: "secondary" | "success" | "warning" }> = {
@@ -77,7 +77,7 @@ export default async function MyListingsPage() {
           <h1 className="font-heading text-2xl font-bold">My listings</h1>
           <p className="mt-2 text-muted-foreground">
             {listings.length === 0
-              ? "Nothing published yet."
+              ? "Nothing here yet."
               : `${listings.length} listing${listings.length === 1 ? "" : "s"}, newest first.`}
           </p>
         </div>
@@ -94,7 +94,7 @@ export default async function MyListingsPage() {
             <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <h2 className="mb-2 font-heading text-lg font-semibold">No listings yet</h2>
             <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
-              Draft your first property, upload its photos, and publish when the details hold up.
+              Draft your first property, upload its photos, then submit it for review when the details hold up.
             </p>
             <Button asChild className="rounded-xl">
               <Link href="/dashboard/listings/new">Draft a listing</Link>
@@ -126,6 +126,12 @@ export default async function MyListingsPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {listing.publishedAt ? `Published ${formatDate(listing.publishedAt)}` : `Drafted ${formatDate(listing.createdAt)}`}
                       </p>
+                      {listing.reviewNote && (listing.lifecycle === "REJECTED" || listing.lifecycle === "DRAFT") && (
+                        <p className="mt-2 max-w-md rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">Reviewer note: </span>
+                          {listing.reviewNote}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={badge.variant}>{badge.label}</Badge>
