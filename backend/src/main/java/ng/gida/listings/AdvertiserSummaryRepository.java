@@ -11,7 +11,8 @@ import org.springframework.stereotype.Repository;
 public class AdvertiserSummaryRepository {
 
     private static final List<String> LIFECYCLE_STATES =
-            List.of("DRAFT", "SUBMITTED", "UNDER_REVIEW", "PUBLISHED", "PAUSED", "EXPIRED", "REJECTED");
+            List.of("DRAFT", "SUBMITTED", "UNDER_REVIEW", "PUBLISHED", "PAUSED", "EXPIRED", "REJECTED",
+                    "SUSPENDED");
 
     // an enquiry counts for the advertiser when it addresses them directly or sits on one of
     // their listings — the same attribution the enquiry inbox uses

@@ -37,6 +37,8 @@ management:
         include: health,info
 
 gida:
+  moderation:
+    auto-approve: ${GIDA_MODERATION_AUTO_APPROVE:false}
   jwt:
     secret: ${JWT_SECRET:}
     issuer: gida

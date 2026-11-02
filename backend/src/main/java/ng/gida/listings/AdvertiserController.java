@@ -43,11 +43,23 @@ public class AdvertiserController {
         listingService.patch(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id, request);
     }
 
-    @PostMapping("/listings/{id}/publish")
+    @PostMapping("/me/listings/{id}/submit")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ListingCreated submit(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return listingService.submit(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
+    }
+
+    @PostMapping("/me/listings/{id}/resume")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public void publish(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-        listingService.publish(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
+    public void resume(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        listingService.resume(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id);
+    }
+
+    @PostMapping("/me/listings/{id}/confirm")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public java.util.Map<String, java.time.Instant> confirm(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return java.util.Map.of("confirmedAt", listingService.confirm(UUID.fromString(jwt.getSubject()), isAdmin(jwt), id));
     }
 
     @PostMapping("/me/listings/{id}/duplicate")

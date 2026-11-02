@@ -60,6 +60,14 @@ public class AuthService {
 
     public RefreshResponse refresh(String presented) {
         RefreshTokenService.Issued rotated = refreshTokens.rotate(presented);
+        var user = users.findById(rotated.userId())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "invalid_refresh_token", "Refresh token is not valid"));
+        if (!"ACTIVE".equals(user.status())) {
+            refreshTokens.revoke(rotated.token());
+            throw new ApiException(HttpStatus.FORBIDDEN, "account_suspended", "This account is suspended");
+        }
+        // shortcut: JWT is stateless, suspension takes effect within ACCESS_TTL,
+        // revisit in slice 8 (token denylist).
         String role = users.findAuthUser(rotated.userId())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "invalid_refresh_token", "Refresh token is not valid"))
                 .role();

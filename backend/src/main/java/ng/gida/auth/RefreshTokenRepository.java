@@ -70,4 +70,8 @@ public class RefreshTokenRepository {
                 .param("id", id)
                 .update();
     }
+    public void revokeAllForUser(UUID userId) {
+        jdbc.sql("UPDATE refresh_tokens SET revoked_at=now() WHERE user_id=:userId AND revoked_at IS NULL")
+                .param("userId",userId).update();
+    }
 }

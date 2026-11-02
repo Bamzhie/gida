@@ -118,14 +118,50 @@ public class ListingRepository {
         jdbc.sql(sql.toString()).params(params).update();
     }
 
-    public void publish(UUID listingId) {
-        jdbc.sql("""
-                        UPDATE listings
-                        SET lifecycle = 'PUBLISHED', published_at = now(), updated_at = now()
-                        WHERE id = :id
-                        """)
+    public void submit(UUID listingId, boolean autoApprove) {
+        jdbc.sql("UPDATE listings SET lifecycle=:state, submitted_at=now(), "
+                    + "published_at=CASE WHEN :auto THEN now() ELSE published_at END, updated_at=now() WHERE "
+                      + "id=:id")
+                .param("state", autoApprove ? "PUBLISHED" : "SUBMITTED")
+                .param("auto", autoApprove)
                 .param("id", listingId)
                 .update();
+    }
+
+    public void resume(UUID listingId) {
+        transition(listingId, "PUBLISHED");
+    }
+    public void approve(UUID listingId) {
+        jdbc.sql("UPDATE listings SET lifecycle='PUBLISHED', published_at=now(), updated_at=now() WHERE "
+                 + "id=:id")
+                .param("id", listingId)
+                .update();
+    }
+    public void reject(UUID listingId) {
+        transition(listingId, "REJECTED");
+    }
+    public void requestCorrections(UUID listingId) {
+        transition(listingId, "DRAFT");
+    }
+    public void suspendListing(UUID listingId) {
+        transition(listingId, "SUSPENDED");
+    }
+    public void reinstateListing(UUID listingId) {
+        transition(listingId, "PAUSED");
+    }
+    private void transition(UUID listingId, String lifecycle) {
+        jdbc.sql("UPDATE listings SET lifecycle=:state, updated_at=now() WHERE id=:id")
+                .param("state", lifecycle)
+                .param("id", listingId)
+                .update();
+    }
+    public OffsetDateTime confirm(UUID listingId) {
+        return jdbc
+                .sql("UPDATE listings SET confirmed_at=now(),updated_at=now() WHERE id=:id RETURNING "
+                     + "confirmed_at")
+                .param("id", listingId)
+                .query(OffsetDateTime.class)
+                .single();
     }
 
     public void pause(UUID listingId) {
@@ -213,11 +249,17 @@ public class ListingRepository {
 
     public List<OwnerListingDto> findByAdvertiser(UUID advertiserId, int limit, int offset) {
         return jdbc.sql("""
-                        SELECT id, title, lifecycle, availability, price, price_period,
-                               created_at, published_at
-                        FROM listings
-                        WHERE advertiser_id = :advertiserId
-                        ORDER BY created_at DESC, id
+                        SELECT l.id, l.title, l.lifecycle, l.availability, l.price, l.price_period,
+                               l.created_at, l.published_at, review.reason AS review_note
+                        FROM listings l
+                        LEFT JOIN LATERAL (
+                            SELECT reason FROM moderation_actions a
+                            WHERE a.target_type='LISTING' AND a.target_id=l.id
+                              AND a.action IN ('REJECT','REQUEST_CORRECTIONS')
+                            ORDER BY a.created_at DESC,a.id DESC LIMIT 1
+                        ) review ON true
+                        WHERE l.advertiser_id = :advertiserId
+                        ORDER BY l.created_at DESC, l.id
                         LIMIT :limit OFFSET :offset
                         """)
                 .param("advertiserId", advertiserId)
@@ -233,7 +275,7 @@ public class ListingRepository {
                             rs.getBigDecimal("price"),
                             rs.getString("price_period"),
                             rs.getObject("created_at", OffsetDateTime.class).toInstant(),
-                            publishedAt == null ? null : publishedAt.toInstant());
+                            publishedAt == null ? null : publishedAt.toInstant(), rs.getString("review_note"));
                 })
                 .list();
     }

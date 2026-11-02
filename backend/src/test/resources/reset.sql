@@ -1,4 +1,5 @@
-TRUNCATE refresh_tokens, favorites, enquiries, property_request_amenities, property_requests,
+TRUNCATE moderation_actions,
+         refresh_tokens, favorites, enquiries, property_request_amenities, property_requests,
          content_items, content_blocks,
          listing_costs, listing_media, property_amenities, listings,
          properties, advertiser_profiles, amenities, locations, users

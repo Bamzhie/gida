@@ -1,6 +1,8 @@
 package ng.gida.listings;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import org.springframework.beans.factory.annotation.Value;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,13 +34,16 @@ public class ListingService {
     private final PropertyRepository properties;
     private final ListingRepository listings;
     private final AdvertiserSummaryRepository summaries;
+    private final boolean autoApprove;
 
     public ListingService(LocationRepository locations, PropertyRepository properties,
-                          ListingRepository listings, AdvertiserSummaryRepository summaries) {
+                          ListingRepository listings, AdvertiserSummaryRepository summaries,
+                          @Value("${gida.moderation.auto-approve:false}") boolean autoApprove) {
         this.locations = locations;
         this.properties = properties;
         this.listings = listings;
         this.summaries = summaries;
+        this.autoApprove = autoApprove;
     }
 
     @Transactional
@@ -129,10 +134,14 @@ public class ListingService {
     @Transactional
     public void patch(UUID actorId, boolean admin, UUID listingId, PatchListingRequest request) {
         ListingRow row = ownedRow(actorId, admin, listingId);
-        if (!"DRAFT".equals(row.lifecycle())
+        if (Set.of("SUBMITTED", "UNDER_REVIEW", "SUSPENDED").contains(row.lifecycle())) {
+            throw new ApiException(HttpStatus.CONFLICT, "listing_locked",
+                    "Listings awaiting review or suspended cannot be edited");
+        }
+        if (!"DRAFT".equals(row.lifecycle()) && !"REJECTED".equals(row.lifecycle())
                 && (request.property() != null || request.costs() != null || request.media() != null)) {
             throw new ApiException(HttpStatus.CONFLICT, "property_locked",
-                    "Property facts, costs and media can only change while the listing is a draft");
+                    "Property facts, costs and media can only change while the listing is a draft or rejected");
         }
         PricePeriod period = request.pricePeriod() == null ? row.pricePeriod() : request.pricePeriod();
         validatePricePeriod(ListingType.valueOf(row.listingType()), period);
@@ -159,12 +168,29 @@ public class ListingService {
     }
 
     @Transactional
-    public void publish(UUID actorId, boolean admin, UUID listingId) {
+    public ListingCreated submit(UUID actorId, boolean admin, UUID listingId) {
         ListingRow row = ownedRow(actorId, admin, listingId);
-        if (!"DRAFT".equals(row.lifecycle()) && !"PAUSED".equals(row.lifecycle())) {
-            throw invalidTransition(row.lifecycle(), "PUBLISHED");
+        if (!"DRAFT".equals(row.lifecycle()) && !"REJECTED".equals(row.lifecycle())) {
+            throw invalidTransition(row.lifecycle(), "SUBMITTED");
         }
-        listings.publish(listingId);
+        listings.submit(listingId, autoApprove);
+        return new ListingCreated(listingId, autoApprove ? "PUBLISHED" : "SUBMITTED");
+    }
+
+    @Transactional
+    public void resume(UUID actorId, boolean admin, UUID listingId) {
+        ListingRow row = ownedRow(actorId, admin, listingId);
+        if (!"PAUSED".equals(row.lifecycle()))
+            throw invalidTransition(row.lifecycle(), "PUBLISHED");
+        listings.resume(listingId);
+    }
+
+    @Transactional
+    public Instant confirm(UUID actorId, boolean admin, UUID listingId) {
+        ListingRow row = ownedRow(actorId, admin, listingId);
+        if (!"PUBLISHED".equals(row.lifecycle()))
+            throw invalidTransition(row.lifecycle(), "PUBLISHED");
+        return listings.confirm(listingId).toInstant();
     }
 
     @Transactional
