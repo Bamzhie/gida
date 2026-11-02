@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Upload, delete and reorder rules for listing media. Owner and draft checks
+ * Upload, delete and reorder rules for listing media. Owner and editable-state checks
  * use their own queries against the listings and listing_media tables; storage
  * objects live behind {@link ObjectStorage}.
  */
@@ -165,9 +165,9 @@ public class MediaStorageService {
         if (!admin && !listing.advertiserId().equals(actorId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "not_owner", "You do not own this listing");
         }
-        if (!"DRAFT".equals(listing.lifecycle())) {
+        if (!"DRAFT".equals(listing.lifecycle()) && !"REJECTED".equals(listing.lifecycle())) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "listing_locked",
-                    "Media can only change while the listing is a draft");
+                    "Media can only change while the listing is a draft or rejected");
         }
     }
 

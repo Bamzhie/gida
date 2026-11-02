@@ -24,9 +24,7 @@ class ListingLifecycleTest extends IntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/invalid_lifecycle_transition"));
 
-        mvc.perform(post("/api/v1/listings/{id}/publish", listingId)
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isNoContent());
+        publishListing(token, listingId);
 
         assertThat(lifecycle(listingId)).isEqualTo("PUBLISHED");
         assertThat(jdbc.sql("SELECT published_at FROM listings WHERE id = :id")
@@ -39,7 +37,7 @@ class ListingLifecycleTest extends IntegrationTest {
                 .andExpect(status().isNoContent());
         assertThat(lifecycle(listingId)).isEqualTo("PAUSED");
 
-        mvc.perform(post("/api/v1/listings/{id}/publish", listingId)
+        mvc.perform(post("/api/v1/me/listings/{id}/resume", listingId)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNoContent());
         assertThat(lifecycle(listingId)).isEqualTo("PUBLISHED");

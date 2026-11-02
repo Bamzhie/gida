@@ -33,6 +33,10 @@ public abstract class IntegrationTest {
                                 {"name":"Test Agent","email":"%s","password":"long enough password","role":"%s"}
                                 """.formatted(email, role)))
                 .andExpect(status().isCreated());
+        return loginAs(email);
+    }
+
+    protected String loginAs(String email) throws Exception {
         String body = mvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -57,9 +61,18 @@ public abstract class IntegrationTest {
         return UUID.fromString(JsonPath.read(body, "$.id"));
     }
 
+    private String cachedAdminToken;
+    protected String adminToken() throws Exception {
+        if (cachedAdminToken != null) return cachedAdminToken;
+        String email = "admin-" + UUID.randomUUID() + "@example.com";
+        registerAndLogin(email, "AGENT");
+        jdbc.sql("UPDATE users SET role = 'ADMIN' WHERE lower(email) = :email").param("email", email).update();
+        return cachedAdminToken = loginAs(email);
+    }
     protected void publishListing(String token, UUID listingId) throws Exception {
-        mvc.perform(post("/api/v1/listings/{id}/publish", listingId)
+        mvc.perform(post("/api/v1/me/listings/{id}/submit", listingId)
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/admin/listings/{id}/approve", listingId).header("Authorization", "Bearer " + adminToken())).andExpect(status().isNoContent());
     }
 }

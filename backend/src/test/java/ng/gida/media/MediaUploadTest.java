@@ -62,6 +62,21 @@ class MediaUploadTest extends IntegrationTest {
     }
 
     @Test
+    void rejectedListingCanUploadCorrectionsAndResubmit() throws Exception {
+        String token = registerAndLogin("agent@example.com", "AGENT");
+        UUID listingId = createListing(token, "lekki-phase-1");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/me/listings/{id}/submit", listingId)
+                .header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/listings/{id}/reject", listingId)
+                .header("Authorization", "Bearer " + adminToken()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"Replace the photos\"}")).andExpect(status().isNoContent());
+        upload(token, listingId, "PHOTO", "correction.png", "image/png", png()).andExpect(status().isCreated());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/me/listings/{id}/submit", listingId)
+                .header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+        upload(token, listingId, "PHOTO", "locked.png", "image/png", png()).andExpect(status().isUnprocessableContent());
+    }
+
+    @Test
     void anotherAgentCannotUploadToAListing() throws Exception {
         String owner = registerAndLogin("owner@example.com", "AGENT");
         String other = registerAndLogin("other@example.com", "AGENT");
