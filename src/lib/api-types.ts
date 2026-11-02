@@ -242,6 +242,7 @@ export type AdminListingDto = {
 
 export type AdminListingDetail = {
   listing: ListingDetailDto;
+  lifecycle: Lifecycle;
   actions: ModerationActionDto[];
 };
 
@@ -286,7 +287,7 @@ export type VerificationDto = {
   state: "UNVERIFIED" | "PENDING" | "VERIFIED" | "FAILED";
   evidenceRef: string | null;
   notes: string | null;
-  updatedAt: string;
+  updatedAt: string | null;
 };
 
 export type VerificationSummary = {

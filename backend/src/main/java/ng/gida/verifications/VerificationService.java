@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import ng.gida.moderation.ModerationActionRepository;
 import ng.gida.shared.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,9 +19,11 @@ public class VerificationService {
             "AUTHORITY", "PRICE", "AVAILABILITY", "MEDIA_FRESHNESS");
     private static final Set<String> STATES = Set.of("UNVERIFIED", "PENDING", "VERIFIED", "FAILED");
     private final VerificationRepository verifications;
+    private final ModerationActionRepository actions;
 
-    public VerificationService(VerificationRepository verifications) {
+    public VerificationService(VerificationRepository verifications, ModerationActionRepository actions) {
         this.verifications = verifications;
+        this.actions = actions;
     }
 
     @Transactional(readOnly = true)
@@ -53,8 +56,9 @@ public class VerificationService {
         return saved.dto();
     }
 
-    void audit(UUID actorId, String subjectType, UUID subjectId, String reason) {
-        // wired at merge
+    private void audit(UUID actorId, String subjectType, UUID subjectId, String reason) {
+        // ADVERTISER verifications belong to the account; moderation_actions names that target USER.
+        actions.record(actorId, "VERIFY", "ADVERTISER".equals(subjectType) ? "USER" : "LISTING", subjectId, reason);
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +82,22 @@ public class VerificationService {
     @Transactional(readOnly = true)
     public boolean verifiedAdvertiser(UUID userId) {
         return verifications.verifiedAdvertiser(userId);
+    }
+
+    /**
+     * Drops prior confirmation of listing facts the owner can change (see the merge-gate
+     * integration correction). The row is reused and cleared, never deleted, so the public
+     * summary keeps returning four booleans. Locking mirrors upsert: concurrent patch and
+     * verification of the same row serialize.
+     */
+    @Transactional
+    public void invalidate(UUID listingId, String... dimensions) {
+        for (String dimension : dimensions) {
+            verifications.findForUpdate("LISTING", listingId, dimension).ifPresent(row -> {
+                row.clear();
+                verifications.saveAndFlush(row);
+            });
+        }
     }
 
     private void validateSubject(String type, UUID id, boolean lock) {

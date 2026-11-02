@@ -21,6 +21,7 @@ import ng.gida.shared.Vocabulary.CostType;
 import ng.gida.shared.Vocabulary.ListingCategory;
 import ng.gida.shared.Vocabulary.ListingType;
 import ng.gida.shared.Vocabulary.PricePeriod;
+import ng.gida.verifications.VerificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,15 +35,18 @@ public class ListingService {
     private final PropertyRepository properties;
     private final ListingRepository listings;
     private final AdvertiserSummaryRepository summaries;
+    private final VerificationService verifications;
     private final boolean autoApprove;
 
     public ListingService(LocationRepository locations, PropertyRepository properties,
                           ListingRepository listings, AdvertiserSummaryRepository summaries,
+                          VerificationService verifications,
                           @Value("${gida.moderation.auto-approve:false}") boolean autoApprove) {
         this.locations = locations;
         this.properties = properties;
         this.listings = listings;
         this.summaries = summaries;
+        this.verifications = verifications;
         this.autoApprove = autoApprove;
     }
 
@@ -143,6 +147,8 @@ public class ListingService {
             throw new ApiException(HttpStatus.CONFLICT, "property_locked",
                     "Property facts, costs and media can only change while the listing is a draft or rejected");
         }
+        boolean priceChanged = (request.price() != null && request.price().compareTo(row.price()) != 0)
+                || (request.pricePeriod() != null && request.pricePeriod() != row.pricePeriod());
         PricePeriod period = request.pricePeriod() == null ? row.pricePeriod() : request.pricePeriod();
         validatePricePeriod(ListingType.valueOf(row.listingType()), period);
 
@@ -164,6 +170,14 @@ public class ListingService {
             List<MediaInput> media = validateMedia(request.media());
             listings.deleteMedia(listingId);
             insertMedia(listingId, media);
+        }
+
+        // Never leave a public badge certifying a fact the owner just changed.
+        if (priceChanged) {
+            verifications.invalidate(listingId, "PRICE");
+        }
+        if (request.property() != null) {
+            verifications.invalidate(listingId, "PROPERTY_EXISTENCE", "LOCATION");
         }
     }
 

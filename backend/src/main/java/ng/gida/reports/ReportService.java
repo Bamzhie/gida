@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import ng.gida.moderation.ModerationActionRepository;
 import ng.gida.shared.ApiException;
 import ng.gida.shared.PageResponse;
 import ng.gida.shared.Paging;
@@ -21,9 +22,11 @@ public class ReportService {
     private static final Set<String> OUTCOMES = Set.of("RESOLVED", "DISMISSED");
 
     private final ReportRepository reports;
+    private final ModerationActionRepository actions;
 
-    public ReportService(ReportRepository reports) {
+    public ReportService(ReportRepository reports, ModerationActionRepository actions) {
         this.reports = reports;
+        this.actions = actions;
     }
 
     @Transactional
@@ -97,8 +100,8 @@ public class ReportService {
         audit(actorId, "RESOLVED".equals(outcome) ? "RESOLVE_REPORT" : "DISMISS_REPORT", reportId, note);
     }
 
-    void audit(UUID actorId, String action, UUID reportId, String note) {
-        // wired at merge
+    private void audit(UUID actorId, String action, UUID reportId, String note) {
+        actions.record(actorId, action, "REPORT", reportId, note);
     }
 
     private static AdminReportDto toDto(ReportRepository.AdminReportRow row) {

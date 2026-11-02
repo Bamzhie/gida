@@ -1,3 +1,7 @@
+-- Local-profile reset: normal audit UPDATE/DELETE remain blocked by V4.
+TRUNCATE moderation_actions;
+DELETE FROM reports;
+DELETE FROM verifications;
 DELETE FROM favorites;
 DELETE FROM enquiries;
 DELETE FROM property_request_amenities;
@@ -331,3 +335,7 @@ FROM (VALUES
      'Not connected. Listings are published from the advertiser''s own account.', NULL, NULL, '{"connected":false}'::jsonb, 6)
 ) AS v(key, label, body, icon_name, href, payload, sort_order)
 JOIN content_blocks b ON b.key = v.key;
+
+-- Development administrator; password supplied only through the gitignored .env.
+INSERT INTO users (id, email, password_hash, name, role) VALUES
+    ('20000000-0000-0000-0000-000000000099', 'admin@gida.local', '$2a$12$.Q8N5dmPv1ZOYD1FMb6L5uZayXnkM84dNkM3itdN2gHe36nZ30nCi', 'Gida Dev Admin', 'ADMIN');

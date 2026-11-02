@@ -51,6 +51,14 @@ public class Verification {
         this.reviewerId = reviewerId;
     }
 
+    /** Back to UNVERIFIED when the fact it certified changed; evidence no longer describes it. */
+    public void clear() {
+        this.state = "UNVERIFIED";
+        this.evidenceRef = null;
+        this.notes = null;
+        this.reviewerId = null;
+    }
+
     @PrePersist
     void create() {
         createdAt = Instant.now();

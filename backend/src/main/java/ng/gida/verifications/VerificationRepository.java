@@ -3,7 +3,9 @@ package ng.gida.verifications;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -11,6 +13,12 @@ public interface VerificationRepository extends JpaRepository<Verification, UUID
     Optional<Verification> findBySubjectTypeAndSubjectIdAndDimension(
             String subjectType, UUID subjectId, String dimension);
     List<Verification> findBySubjectTypeAndSubjectId(String subjectType, UUID subjectId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select v from Verification v where v.subjectType = :type and v.subjectId = :id "
+            + "and v.dimension = :dimension")
+    Optional<Verification> findForUpdate(@Param("type") String type, @Param("id") UUID id,
+                                         @Param("dimension") String dimension);
 
     @Query(nativeQuery = true, value = "SELECT id FROM listings WHERE id = :id FOR UPDATE")
     Optional<UUID> lockListing(@Param("id") UUID id);
