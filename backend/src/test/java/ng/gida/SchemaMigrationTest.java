@@ -102,6 +102,29 @@ class SchemaMigrationTest extends IntegrationTest {
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
+    @Test
+    void suspendedIsAValidLifecycleState() {
+        UUID userId = insertUser("agent@example.com", "AGENT");
+        UUID propertyId = insertProperty("lekki-phase-1");
+        UUID listingId = insertListing(userId, propertyId, "SALE", null);
+        jdbc.sql("UPDATE listings SET lifecycle = 'SUSPENDED' WHERE id = :id").param("id", listingId).update();
+        assertThat(jdbc.sql("SELECT lifecycle FROM listings WHERE id = :id")
+                .param("id", listingId).query(String.class).single()).isEqualTo("SUSPENDED");
+    }
+
+    @Test
+    void moderationActionsCannotBeRewritten() {
+        UUID actor = insertUser("admin@example.com", "ADMIN");
+        jdbc.sql("""
+                INSERT INTO moderation_actions (actor_id, action, target_type, target_id, reason)
+                VALUES (:actor, 'APPROVE', 'LISTING', :target, 'ok')
+                """).param("actor", actor).param("target", UUID.randomUUID()).update();
+        assertThatThrownBy(() -> jdbc.sql("DELETE FROM moderation_actions").update())
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.sql("UPDATE moderation_actions SET reason = 'changed'").update())
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
     private UUID insertUser(String email, String role) {
         return jdbc.sql("""
                 INSERT INTO users (email, password_hash, name, role)
