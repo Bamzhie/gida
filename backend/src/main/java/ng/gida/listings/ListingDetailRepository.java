@@ -19,7 +19,11 @@ public class ListingDetailRepository {
         this.jdbc = jdbc;
     }
 
-    public Optional<ListingDetailDto> find(UUID listingId) {
+    public Optional<ListingDetailDto> find(UUID listingId) { return findInternal(listingId, false); }
+
+    public Optional<ListingDetailDto> findDetailForAdmin(UUID listingId) { return findInternal(listingId, true); }
+
+    private Optional<ListingDetailDto> findInternal(UUID listingId, boolean admin) {
         return jdbc.sql("""
                         SELECT l.id, l.title, l.description, l.listing_type, l.category,
                                l.price, l.price_period, l.availability,
@@ -52,9 +56,7 @@ public class ListingDetailRepository {
                         JOIN users u ON u.id = l.advertiser_id
                         LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
                         WHERE l.id = :id
-                          AND l.lifecycle = 'PUBLISHED'
-                          AND (l.expires_at IS NULL OR l.expires_at > now())
-                        """)
+                        """ + (admin ? "" : " AND l.lifecycle='PUBLISHED' AND (l.expires_at IS NULL OR l.expires_at > now())"))
                 .param("id", listingId)
                 .query(this::mapDetail)
                 .optional();
