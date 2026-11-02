@@ -1,7 +1,7 @@
 TRUNCATE refresh_tokens, favorites, enquiries, property_request_amenities, property_requests,
          content_items, content_blocks,
          listing_costs, listing_media, property_amenities, listings,
-         properties, advertiser_profiles, amenities, locations, users
+         properties, advertiser_profiles, amenities, locations, users, reports
     RESTART IDENTITY CASCADE;
 
 INSERT INTO locations (id, parent_id, kind, name, slug) VALUES
