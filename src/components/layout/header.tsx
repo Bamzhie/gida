@@ -109,7 +109,7 @@ export default function Header() {
         <nav
           aria-label="Primary navigation"
           className={cn(
-            "hidden md:flex items-center gap-1 rounded-full border px-1.5 py-1.5 transition-colors",
+            "hidden lg:flex items-center gap-1 rounded-full border px-1.5 py-1.5 transition-colors",
             transparent ? "border-white/25 bg-white/10 backdrop-blur-md" : "border-border bg-card"
           )}
         >
@@ -119,7 +119,7 @@ export default function Header() {
               href={link.href}
               aria-current={pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`)) ? "page" : undefined}
               className={cn(
-                "px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
+                "px-1.5 py-1.5 rounded-full text-sm font-medium transition-colors xl:px-4",
                 pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`))
                   ? transparent
                     ? "bg-white text-neutral-900"
@@ -135,7 +135,7 @@ export default function Header() {
         </nav>
 
         {/* Desktop actions */}
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden lg:flex items-center gap-1 xl:gap-2">
           <Button variant="ghost" size="icon" className={signInClass} asChild>
             <Link href="/favorites" aria-label="Saved properties">
               <Heart className="h-5 w-5" />
@@ -180,7 +180,7 @@ export default function Header() {
           variant="ghost"
           size="icon"
           className={cn(
-            "md:hidden rounded-full",
+            "lg:hidden rounded-full",
             transparent && "text-white hover:bg-white/15 hover:text-white"
           )}
           aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -194,7 +194,7 @@ export default function Header() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div id="mobile-navigation" aria-label="Mobile navigation" className="md:hidden border-t border-border bg-background">
+        <div id="mobile-navigation" aria-label="Mobile navigation" className="lg:hidden border-t border-border bg-background">
           <div className="container mx-auto px-4 py-4 space-y-3">
             {navLinks.map((link) => (
               <Link

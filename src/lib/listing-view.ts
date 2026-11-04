@@ -26,6 +26,7 @@ export type ListingCardModel = {
   latitude: number | null;
   longitude: number | null;
   primaryImage: { url: string; caption: string | null } | null;
+  advertiser: AdvertiserDto;
   hasDisclosedFees: boolean;
   confirmedAt: string | null;
 };
@@ -75,6 +76,7 @@ export function toCardModel(dto: ListingSummaryDto): ListingCardModel {
     latitude: dto.latitude,
     longitude: dto.longitude,
     primaryImage: dto.primaryImage,
+    advertiser: dto.advertiser,
     hasDisclosedFees: dto.hasDisclosedFees,
     confirmedAt: dto.confirmedAt,
   };

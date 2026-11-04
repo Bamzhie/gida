@@ -1,8 +1,8 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- media urls point at the API origin (e.g. /media/...) or arbitrary external hosts, neither of which next/image can be configured for. */
+/* eslint-disable @next/next/no-img-element -- media urls can point at the API origin or arbitrary advertiser hosts. */
 
 import { useState } from "react";
-import { FileText, Film } from "lucide-react";
+import { Camera, FileText, Film } from "lucide-react";
 import type { MediaKind } from "@/lib/api-types";
 import { resolveMediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -16,14 +16,7 @@ type GalleryMedia = {
 type PropertyGalleryProps = {
   media: GalleryMedia[];
   title: string;
-  /** API origin used to resolve backend-relative media urls; passed from the server. */
   mediaOrigin?: string;
-};
-
-const KIND_LABELS: Record<MediaKind, string> = {
-  PHOTO: "Photo",
-  VIDEO: "Video",
-  FLOOR_PLAN: "Floor plan",
 };
 
 function isPdf(url: string): boolean {
@@ -32,93 +25,115 @@ function isPdf(url: string): boolean {
 
 export function PropertyGallery({ media, title, mediaOrigin }: PropertyGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const active = media[activeIndex] ?? media[0];
-  const activeUrl = active ? resolveMediaUrl(mediaOrigin, active.url) : "";
+  const photos = media.filter((item) => item.kind === "PHOTO").length;
+  const videos = media.filter((item) => item.kind === "VIDEO").length;
+  const visibleIndexes = media.length <= 3
+    ? media.map((_, index) => index)
+    : [0, 1, 2].map((offset) => (activeIndex + offset) % media.length);
 
-  if (!active) return null;
+  function mediaPreview(item: GalleryMedia, index: number, primary: boolean) {
+    const url = resolveMediaUrl(mediaOrigin, item.url);
+    if (item.kind === "VIDEO") {
+      return primary ? (
+        <video
+          key={url}
+          src={url}
+          controls
+          preload="metadata"
+          aria-label={item.caption ?? `Video tour of ${title}`}
+          className="absolute inset-0 h-full w-full bg-black object-contain"
+        />
+      ) : (
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-secondary text-foreground">
+          <Film className="size-8" aria-hidden="true" />
+          <span className="text-sm font-medium">Video tour</span>
+        </span>
+      );
+    }
+    if (item.kind === "FLOOR_PLAN" && isPdf(item.url)) {
+      const preview = (
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-secondary text-foreground">
+          <FileText className="size-8" aria-hidden="true" />
+          <span className="text-sm font-medium">Floor plan PDF</span>
+        </span>
+      );
+      return primary ? <a href={url} target="_blank" rel="noreferrer" aria-label="Open floor plan PDF in a new tab">{preview}</a> : preview;
+    }
+    return <img src={url} alt={item.caption ?? `${title}, image ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" />;
+  }
+
+  if (media.length === 0) return null;
 
   return (
-    <div>
-      <div className="relative h-72 overflow-hidden bg-secondary sm:h-96">
-        {active.kind === "VIDEO" ? (
-          <video
-            key={activeUrl}
-            src={activeUrl}
-            controls
-            preload="metadata"
-            aria-label={active.caption ?? `Video tour of ${title}`}
-            className="h-full w-full bg-black object-contain"
-          />
-        ) : active.kind === "FLOOR_PLAN" && isPdf(active.url) ? (
-          <a
-            href={activeUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex h-full w-full flex-col items-center justify-center gap-3 text-center text-muted-foreground hover:text-foreground"
-          >
-            <FileText className="h-12 w-12" aria-hidden="true" />
-            <span className="text-sm font-medium">Open the floor plan (PDF)</span>
-          </a>
-        ) : (
-          <img
-            src={activeUrl}
-            alt={active.caption ?? title}
-            className="h-full w-full object-cover"
-          />
-        )}
-        <p className="absolute left-3 top-3 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
-          {KIND_LABELS[active.kind]}
-        </p>
-        {media.length > 1 && (
-          <p aria-hidden="true" className="absolute bottom-3 right-3 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
-            {activeIndex + 1} / {media.length}
-          </p>
-        )}
+    <div className="overflow-hidden rounded-xl">
+      <div className={cn(
+        "grid gap-2 sm:h-[min(62vw,30rem)] sm:max-h-[30rem]",
+        visibleIndexes.length > 1 ? "sm:grid-cols-[1.8fr_1fr] sm:grid-rows-2" : "sm:grid-cols-1"
+      )}>
+        {visibleIndexes.map((index, position) => {
+          const item = media[index];
+          const isPrimary = position === 0;
+          const tileClass = cn(
+            "relative isolate block min-h-52 overflow-hidden bg-secondary text-left",
+            isPrimary ? "sm:row-span-2 sm:min-h-0" : "hidden sm:block sm:min-h-0"
+          );
+          const countBadge = isPrimary && (photos > 0 || videos > 0) && (
+            <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-md bg-background/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+              {photos > 0 && <span className="inline-flex items-center gap-1"><Camera className="size-3.5" />{media.slice(0, activeIndex + 1).filter((entry) => entry.kind === "PHOTO").length || 1}/{photos}</span>}
+              {videos > 0 && <span className="inline-flex items-center gap-1"><Film className="size-3.5" />{videos}</span>}
+            </span>
+          );
+
+          return isPrimary ? (
+            <div key={`${item.url}-${index}`} className={tileClass}>
+              {mediaPreview(item, index, true)}
+              {countBadge}
+            </div>
+          ) : (
+            <button
+              key={`${item.url}-${index}`}
+              type="button"
+              onClick={() => setActiveIndex(index)}
+              aria-label={`Show ${item.kind === "PHOTO" ? "photo" : item.kind === "VIDEO" ? "video" : "floor plan"} ${index + 1}`}
+              className={cn(tileClass, "group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring")}
+            >
+              {mediaPreview(item, index, false)}
+              {visibleIndexes.length === 3 && position === 2 && media.length > 3 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-foreground/45 text-lg font-semibold text-background transition-colors group-hover:bg-foreground/55">
+                  +{media.length - 3} more
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
+
       {media.length > 1 && (
-        <>
-          <p aria-live="polite" className="sr-only">
-            {KIND_LABELS[active.kind]} {activeIndex + 1} of {media.length}
-          </p>
-          <div className="flex gap-2 overflow-x-auto border-t border-border p-3" role="group" aria-label="Property media">
-            {media.map((item, index) => (
-              <button
-                key={`${item.url}-${index}`}
-                type="button"
-                onClick={() => setActiveIndex(index)}
-                aria-label={`Show ${KIND_LABELS[item.kind].toLowerCase()} ${index + 1} of ${media.length}`}
-                aria-pressed={index === activeIndex}
-                className={cn(
-                  "relative flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 bg-background text-muted-foreground transition-opacity",
-                  index === activeIndex ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
-                )}
-              >
-                {item.kind === "VIDEO" ? (
-                  <span className="flex flex-col items-center gap-0.5">
-                    <Film className="h-5 w-5" aria-hidden="true" />
-                    <span className="text-[10px] font-medium">Video</span>
-                  </span>
-                ) : item.kind === "FLOOR_PLAN" && isPdf(item.url) ? (
-                  <span className="flex flex-col items-center gap-0.5">
-                    <FileText className="h-5 w-5" aria-hidden="true" />
-                    <span className="text-[10px] font-medium">Plan</span>
-                  </span>
-                ) : item.kind === "FLOOR_PLAN" ? (
-                  <span className="relative h-full w-full">
-                    <img src={resolveMediaUrl(mediaOrigin, item.url)} alt="" className="h-full w-full object-cover" />
-                    <span className="absolute bottom-0 left-0 right-0 bg-background/85 text-center text-[10px] font-medium">Plan</span>
-                  </span>
-                ) : (
-                  <img src={resolveMediaUrl(mediaOrigin, item.url)} alt="" className="h-full w-full object-cover" />
-                )}
-              </button>
-            ))}
-          </div>
-        </>
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Property photos, videos and floor plans">
+          {media.map((item, index) => (
+            <button
+              key={`${item.url}-${index}`}
+              type="button"
+              onClick={() => setActiveIndex(index)}
+              aria-label={`Show ${item.kind.toLowerCase().replace("_", " ")} ${index + 1} of ${media.length}`}
+              aria-pressed={index === activeIndex}
+              className={cn(
+                "relative size-[4.25rem] shrink-0 overflow-hidden rounded-md border-2 bg-secondary",
+                index === activeIndex ? "border-primary" : "border-transparent opacity-75 hover:opacity-100"
+              )}
+            >
+              {item.kind === "PHOTO" || (item.kind === "FLOOR_PLAN" && !isPdf(item.url)) ? (
+                <img src={resolveMediaUrl(mediaOrigin, item.url)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <span className="absolute inset-0 grid place-items-center text-muted-foreground">
+                  {item.kind === "VIDEO" ? <Film className="size-5" /> : <FileText className="size-5" />}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       )}
-      <p className="sr-only">
-        Media alternates between photos, video tours and floor plans as labelled.
-      </p>
+      <p className="sr-only" aria-live="polite">Showing item {activeIndex + 1} of {media.length}</p>
     </div>
   );
 }

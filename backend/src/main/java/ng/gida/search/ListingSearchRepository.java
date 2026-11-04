@@ -35,10 +35,15 @@ public class ListingSearchRepository {
                    ST_Y(p.geom) AS latitude, ST_X(p.geom) AS longitude,
                    img.url AS image_url, img.caption AS image_caption,
                    EXISTS (SELECT 1 FROM listing_costs c WHERE c.listing_id = l.id) AS has_disclosed_fees,
-                   l.confirmed_at
+                   l.confirmed_at,
+                   advertiser.id AS advertiser_id, advertiser.name AS advertiser_name,
+                   COALESCE(profile.contact_phone, advertiser.phone) AS advertiser_phone,
+                   profile.agency_name
             FROM listings l
             JOIN properties p ON p.id = l.property_id
             JOIN locations loc ON loc.id = p.location_id
+            JOIN users advertiser ON advertiser.id = l.advertiser_id
+            LEFT JOIN advertiser_profiles profile ON profile.user_id = advertiser.id
             LEFT JOIN locations up1 ON up1.id = loc.parent_id
             LEFT JOIN locations up2 ON up2.id = up1.parent_id
             LEFT JOIN locations up3 ON up3.id = up2.parent_id
@@ -281,7 +286,12 @@ public class ListingSearchRepository {
                         ? null
                         : new ListingSummaryDto.ImageDto(imageUrl, rs.getString("image_caption")),
                 rs.getBoolean("has_disclosed_fees"),
-                instant(rs, "confirmed_at"));
+                instant(rs, "confirmed_at"),
+                new ListingSummaryDto.AdvertiserDto(
+                        rs.getObject("advertiser_id", UUID.class),
+                        rs.getString("advertiser_name"),
+                        rs.getString("agency_name"),
+                        rs.getString("advertiser_phone")));
     }
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {

@@ -12,9 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { isValidContact } from "@/lib/validate";
 import { problemCode } from "@/lib/api-base";
 
-type Props = { advertiserId: string; advertiserName: string };
+type Props = { advertiserId: string; advertiserName: string; buttonLabel?: string };
 
-export function AgentContactForm({ advertiserId, advertiserName }: Props) {
+export function AgentContactForm({ advertiserId, advertiserName, buttonLabel = "Contact" }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -59,7 +59,7 @@ export function AgentContactForm({ advertiserId, advertiserName }: Props) {
   if (!open) {
     return (
       <Button className="w-full rounded-xl" size="sm" onClick={() => setOpen(true)}>
-        <MessageCircle className="h-4 w-4" />Contact
+        <MessageCircle className="h-4 w-4" />{buttonLabel}
       </Button>
     );
   }

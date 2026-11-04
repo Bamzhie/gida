@@ -63,7 +63,7 @@ class AdminListingReviewTest extends IntegrationTest {
     @Test
     void rejectRequiresAReasonAndRecordsIt() throws Exception {
         submitted();
-        act("reject", "{}").andExpect(status().isUnprocessableEntity());
+        act("reject", "{}").andExpect(status().isUnprocessableContent());
         act("reject", "{\"reason\":\"Fix the price\"}").andExpect(status().isNoContent());
         mvc.perform(get("/api/v1/me/listings").header("Authorization", "Bearer " + owner))
                 .andExpect(jsonPath("$.items[0].reviewNote").value("Fix the price"));
@@ -179,7 +179,7 @@ class AdminListingReviewTest extends IntegrationTest {
         act("reject",
                 "{\"reason\":\""
                         + "x".repeat(1001) + "\"}")
-                .andExpect(status().isUnprocessableEntity());
+                .andExpect(status().isUnprocessableContent());
         act("approve", "{}").andExpect(status().isNoContent());
         jdbc.sql("UPDATE listings SET published_at=now()-interval '40 days',confirmed_at=NULL WHERE id=:id")
                 .param("id", id)

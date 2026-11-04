@@ -33,6 +33,7 @@ export type ListingSummaryDto = {
   primaryImage: ImageDto | null;
   hasDisclosedFees: boolean;
   confirmedAt: string | null;
+  advertiser: AdvertiserDto;
 };
 
 export type CostDto = {
@@ -114,6 +115,8 @@ export type AdvertiserCardDto = {
   listingCount: number;
   verified: boolean;
 };
+
+export type AdvertiserProfilePageDto = AdvertiserCardDto;
 
 export type ListingDetailDto = {
   id: string;

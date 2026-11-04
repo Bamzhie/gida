@@ -43,9 +43,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                   <LogIn className="size-4" /> Admin sign in
                 </Link>
               </Button>
-              <Button asChild variant="ghost">
-                <Link href="/listings">Return to marketplace <ArrowUpRight className="size-4" /></Link>
-              </Button>
             </div>
           </div>
         </div>

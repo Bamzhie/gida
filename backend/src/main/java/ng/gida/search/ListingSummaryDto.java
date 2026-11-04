@@ -23,8 +23,12 @@ public record ListingSummaryDto(
         Double longitude,
         ImageDto primaryImage,
         boolean hasDisclosedFees,
-        Instant confirmedAt) {
+        Instant confirmedAt,
+        AdvertiserDto advertiser) {
 
     public record ImageDto(String url, String caption) {
+    }
+
+    public record AdvertiserDto(UUID id, String name, String agencyName, String phone) {
     }
 }
