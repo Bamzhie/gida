@@ -96,11 +96,10 @@ class AdminUserSuspensionTest extends IntegrationTest {
     @Test
     void suspendRequiresAReasonAndRejectsSelfSuspension() throws Exception {
         UUID id = target();
-        act(id, "suspend", "{}").andExpect(status().isUnprocessableEntity());
-        String admin = adminToken();
+        act(id, "suspend", "{}").andExpect(status().isUnprocessableContent());
         UUID self = jdbc.sql("SELECT id FROM users WHERE role='ADMIN'").query(UUID.class).single();
         act(self, "suspend", "{\"reason\":\"Oops\"}")
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("https://gida.ng/errors/cannot_suspend_self"));
     }
     @Test

@@ -113,7 +113,6 @@ export default async function HomePage() {
                 Find a home you won&apos;t have to second guess.
               </h1>
               <p className="mt-5 text-white/85 text-lg">
-                Visible fees, clear status, and honest dates on every home.
               </p>
               <Link
                 href="/how-it-works"

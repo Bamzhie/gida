@@ -10,7 +10,6 @@ import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.UUID;
 import ng.gida.IntegrationTest;
-import ng.gida.support.ListingFixtures;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -170,7 +169,7 @@ class AdvertiserManagementTest extends IntegrationTest {
         String bayo = registerAndLogin("bayo@example.com", "AGENT");
         UUID busy = createListing(ade, "lekki-phase-1");
         UUID quiet = createListing(ade, "ikeja");
-        UUID draft = createListing(ade, "yaba");
+        createListing(ade, "yaba");
         UUID paused = createListing(ade, "ikeja");
         publishListing(ade, busy);
         publishListing(ade, quiet);

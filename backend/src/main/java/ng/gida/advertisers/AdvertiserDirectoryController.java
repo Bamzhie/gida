@@ -4,6 +4,7 @@ import ng.gida.shared.ApiException;
 import ng.gida.shared.PageResponse;
 import ng.gida.shared.Paging;
 import org.springframework.http.HttpStatus;
+import java.util.UUID;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,6 +25,12 @@ public class AdvertiserDirectoryController {
     public PageResponse<AdvertiserCardDto> search(@RequestParam MultiValueMap<String, String> params) {
         Paging paging = Paging.of(integer(params, "page"), integer(params, "size"));
         return directory.search(single(params, "q"), single(params, "location"), paging);
+    }
+
+    @GetMapping("/advertisers/{advertiserId}")
+    public AdvertiserProfilePageDto profile(@org.springframework.web.bind.annotation.PathVariable UUID advertiserId) {
+        return directory.findProfile(advertiserId).orElseThrow(() ->
+                new ApiException(HttpStatus.NOT_FOUND, "advertiser_not_found", "That advertiser is not listed"));
     }
 
     private static String single(MultiValueMap<String, String> params, String key) {

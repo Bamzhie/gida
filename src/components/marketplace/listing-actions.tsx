@@ -1,14 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Heart, Mail, Phone, Share2 } from "lucide-react";
+import { CalendarDays, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { RevealPhone } from "@/components/marketplace/reveal-phone";
 import { problemCode } from "@/lib/api-base";
 import { isValidContact } from "@/lib/validate";
 
@@ -17,66 +17,16 @@ type ListingActionsProps = {
   propertyTitle: string;
   agentName: string;
   agentPhone?: string;
-  saved: boolean;
 };
 
-export function ListingActions({ propertyId, propertyTitle, agentName, agentPhone, saved }: ListingActionsProps) {
-  const router = useRouter();
+export function ListingActions({ propertyId, propertyTitle, agentName, agentPhone }: ListingActionsProps) {
   const honeypot = useRef("");
   const [submitting, setSubmitting] = useState(false);
-  const [favorite, setFavorite] = useState(saved);
   const [enquiryAction, setEnquiryAction] = useState<"contact" | "viewing" | null>(null);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
   const [confirmation, setConfirmation] = useState("");
-
-  async function toggleFavorite() {
-    const next = !favorite;
-    setFavorite(next);
-    const response = await fetch(`/api/favorites/${propertyId}`, { method: next ? "PUT" : "DELETE" });
-
-    if (response.status === 401) {
-      setFavorite(!next);
-      toast.error("Sign in to save properties.");
-      router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
-    if (!response.ok) {
-      setFavorite(!next);
-      const code = await response.json().then((body) => body?.type ?? "").catch(() => "");
-      toast.error(
-        code.endsWith("/listing_not_found")
-          ? "This property is no longer available."
-          : next ? "Could not save this property." : "Could not remove this property."
-      );
-      return;
-    }
-    toast.success(next ? "Property saved." : "Removed from saved properties.");
-    router.refresh();
-  }
-
-  async function shareProperty() {
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: propertyTitle, url });
-      } catch {
-        // A cancelled native share is not an application error.
-      }
-      return;
-    }
-    if (navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success("Listing link copied.");
-      } catch {
-        toast.error("The listing link could not be copied.");
-      }
-      return;
-    }
-    toast.error("Sharing is not available in this browser.");
-  }
 
   function openEnquiry(action: "contact" | "viewing") {
     setEnquiryAction(action);
@@ -129,35 +79,18 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
     toast.success("Enquiry sent to the advertiser.");
   }
 
-  const actionLabel = enquiryAction === "viewing" ? "Request a viewing" : "Contact advertiser";
+  const actionLabel = enquiryAction === "viewing" ? "Book a viewing" : "Request details";
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={toggleFavorite}
-          aria-pressed={favorite}
-          className="flex-1 rounded-xl"
-        >
-          <Heart className={favorite ? "fill-accent text-accent" : ""} />
-          {favorite ? "Saved" : "Save property"}
-        </Button>
-        <Button type="button" variant="outline" onClick={shareProperty} className="flex-1 rounded-xl">
-          <Share2 /> Share
+    <div id="contact-advertiser" className="scroll-mt-24 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <RevealPhone phone={agentPhone} revealLabel="Call advertiser" className="w-full rounded-lg px-2 text-xs sm:text-sm" />
+        <Button type="button" variant="outline" onClick={() => openEnquiry("contact")} className="w-full rounded-lg px-2 text-xs sm:text-sm" aria-expanded={enquiryAction === "contact"}>
+          <Mail /> Request details
         </Button>
       </div>
-      {agentPhone && (
-        <p className="flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-          <Phone className="h-4 w-4" /> Advertiser phone: {agentPhone}
-        </p>
-      )}
-      <Button type="button" onClick={() => openEnquiry("contact")} className="w-full rounded-xl" aria-expanded={enquiryAction === "contact"}>
-        <Mail /> Contact advertiser
-      </Button>
-      <Button type="button" variant="outline" onClick={() => openEnquiry("viewing")} className="w-full rounded-xl" aria-expanded={enquiryAction === "viewing"}>
-        Request a viewing
+      <Button type="button" variant="outline" onClick={() => openEnquiry("viewing")} className="w-full rounded-lg" aria-expanded={enquiryAction === "viewing"}>
+        <CalendarDays /> Book a viewing
       </Button>
       <p className="text-center text-xs text-muted-foreground">
         The advertiser sees it in their dashboard.
@@ -168,7 +101,7 @@ export function ListingActions({ propertyId, propertyTitle, agentName, agentPhon
             <div>
               <h3 className="font-semibold">{actionLabel}</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Compose a message to {agentName} about {propertyTitle}. It goes to their dashboard.
+                Send {agentName} a message about {propertyTitle}. It will appear in their Gida inbox.
               </p>
             </div>
             {confirmation ? (

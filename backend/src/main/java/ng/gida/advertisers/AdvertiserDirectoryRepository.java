@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import ng.gida.shared.PageResponse;
 import ng.gida.shared.Paging;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Repository;
 public class AdvertiserDirectoryRepository {
 
     private static final String SELECT = """
-            SELECT u.id, u.name, ap.agency_name, ap.bio, u.phone,
+            SELECT u.id, u.name, ap.agency_name, ap.bio, COALESCE(ap.contact_phone, u.phone) AS phone,
                    (SELECT count(*) FROM listings l
                      JOIN properties p ON p.id = l.property_id
                     WHERE l.advertiser_id = u.id
@@ -39,6 +40,33 @@ public class AdvertiserDirectoryRepository {
 
     public AdvertiserDirectoryRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
+    }
+
+    public Optional<AdvertiserProfilePageDto> findProfile(UUID advertiserId) {
+        return jdbc.sql("""
+                SELECT u.id, u.name, ap.agency_name, ap.bio,
+                       COALESCE(ap.contact_phone, u.phone) AS phone,
+                       (SELECT count(*) FROM listings l
+                         WHERE l.advertiser_id = u.id
+                           AND l.lifecycle = 'PUBLISHED'
+                           AND (l.expires_at IS NULL OR l.expires_at > now())) AS listing_count,
+                       EXISTS (SELECT 1 FROM verifications v WHERE v.subject_type='ADVERTISER'
+                           AND v.subject_id=u.id AND v.dimension IN ('IDENTITY','BUSINESS')
+                           AND v.state='VERIFIED') AS verified
+                FROM users u
+                LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
+                WHERE u.id = :id AND u.role = 'AGENT' AND u.status = 'ACTIVE'
+                """)
+                .param("id", advertiserId)
+                .query((rs, row) -> new AdvertiserProfilePageDto(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("name"),
+                        rs.getString("agency_name"),
+                        rs.getString("bio"),
+                        rs.getString("phone"),
+                        rs.getLong("listing_count"),
+                        rs.getBoolean("verified")))
+                .optional();
     }
 
     public PageResponse<AdvertiserCardDto> search(String q, String location, Paging paging) {

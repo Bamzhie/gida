@@ -50,7 +50,7 @@ public class ModerationService {
         var listing = details.findDetailForAdmin(id).orElseThrow(
                 () -> new ApiException(HttpStatus.NOT_FOUND, "listing_not_found", "Listing not found"));
         var history = actions.findByTargetTypeAndTargetIdOrderByCreatedAtDesc("LISTING", id);
-        var names = users.findNames(history.stream().map(ModerationAction::getActorId).distinct().toList());
+        var names = users.findNames(history.stream().map(action -> action.getActorId()).distinct().toList());
         String lifecycle = queue.findLifecycle(id).orElseThrow(
                 () -> new ApiException(HttpStatus.NOT_FOUND, "listing_not_found", "Listing not found"));
         return new AdminListingDetailDto(lifecycle, listing,
