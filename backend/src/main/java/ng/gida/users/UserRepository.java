@@ -84,6 +84,21 @@ public class UserRepository {
                 .optional();
     }
 
+    public void updateAccountProfile(UUID id, String name, String phone) {
+        jdbc.sql("UPDATE users SET name=:name, phone=:phone, updated_at=now() WHERE id=:id")
+                .param("name", name)
+                .param("phone", phone, Types.VARCHAR)
+                .param("id", id)
+                .update();
+    }
+
+    public void updatePasswordHash(UUID id, String passwordHash) {
+        jdbc.sql("UPDATE users SET password_hash=:hash, updated_at=now() WHERE id=:id")
+                .param("hash", passwordHash)
+                .param("id", id)
+                .update();
+    }
+
     public Optional<String> findStatusForUpdate(UUID id) {
         // Serialize status changes without blocking refresh-token FK KEY SHARE checks.
         // FOR UPDATE here would invert the user/token lock order during suspension.

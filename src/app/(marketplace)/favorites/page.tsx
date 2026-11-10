@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { getFavoriteListings } from "@/lib/favorites";
 import { ACCESS_COOKIE } from "@/lib/api-base";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +16,9 @@ export default async function FavoritesPage() {
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
   if (!token) redirect(`/login?next=${encodeURIComponent("/favorites")}`);
 
-  const listings = await getFavoriteListings();
+  const [listings, user] = await Promise.all([getFavoriteListings(), getCurrentUser()]);
 
-  return (
+  const content = (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -44,4 +46,6 @@ export default async function FavoritesPage() {
       )}
     </div>
   );
+
+  return user?.role === "USER" ? <DashboardShell role="USER">{content}</DashboardShell> : content;
 }

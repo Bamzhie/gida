@@ -20,6 +20,7 @@ import ng.gida.shared.Paging;
 import ng.gida.shared.Vocabulary.CostType;
 import ng.gida.shared.Vocabulary.ListingCategory;
 import ng.gida.shared.Vocabulary.ListingType;
+import ng.gida.shared.Vocabulary.MediaKind;
 import ng.gida.shared.Vocabulary.PricePeriod;
 import ng.gida.verifications.VerificationService;
 import org.springframework.http.HttpStatus;
@@ -34,17 +35,20 @@ public class ListingService {
     private final LocationRepository locations;
     private final PropertyRepository properties;
     private final ListingRepository listings;
+    private final ListingDetailRepository details;
     private final AdvertiserSummaryRepository summaries;
     private final VerificationService verifications;
     private final boolean autoApprove;
 
     public ListingService(LocationRepository locations, PropertyRepository properties,
-                          ListingRepository listings, AdvertiserSummaryRepository summaries,
+                          ListingRepository listings, ListingDetailRepository details,
+                          AdvertiserSummaryRepository summaries,
                           VerificationService verifications,
                           @Value("${gida.moderation.auto-approve:false}") boolean autoApprove) {
         this.locations = locations;
         this.properties = properties;
         this.listings = listings;
+        this.details = details;
         this.summaries = summaries;
         this.verifications = verifications;
         this.autoApprove = autoApprove;
@@ -101,9 +105,11 @@ public class ListingService {
 
     List<MediaInput> validateMedia(List<MediaInput> media) {
         List<MediaInput> resolved = media == null ? List.of() : media;
-        if (resolved.size() > 20) {
+        long videos = resolved.stream().filter(item -> item.kind() == MediaKind.VIDEO).count();
+        long imagesAndPlans = resolved.size() - videos;
+        if (videos > 2 || imagesAndPlans > 10) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "too_many_media",
-                    "A listing may carry at most 20 media entries");
+                    "A listing may carry up to 10 photos or floor plans and 2 videos");
         }
         return resolved;
     }
@@ -138,21 +144,34 @@ public class ListingService {
     @Transactional
     public void patch(UUID actorId, boolean admin, UUID listingId, PatchListingRequest request) {
         ListingRow row = ownedRow(actorId, admin, listingId);
-        if (Set.of("SUBMITTED", "UNDER_REVIEW", "SUSPENDED").contains(row.lifecycle())) {
+        if ("SUSPENDED".equals(row.lifecycle())) {
             throw new ApiException(HttpStatus.CONFLICT, "listing_locked",
-                    "Listings awaiting review or suspended cannot be edited");
+                    "Suspended listings cannot be edited");
         }
-        if (!"DRAFT".equals(row.lifecycle()) && !"REJECTED".equals(row.lifecycle())
-                && (request.property() != null || request.costs() != null || request.media() != null)) {
+        boolean editableBeforeApproval = Set.of("DRAFT", "REJECTED", "SUBMITTED", "UNDER_REVIEW")
+                .contains(row.lifecycle());
+        boolean changesProtectedFields = request.listingType() != null || request.category() != null
+                || request.property() != null || request.costs() != null || request.media() != null;
+        if (!editableBeforeApproval && changesProtectedFields) {
             throw new ApiException(HttpStatus.CONFLICT, "property_locked",
-                    "Property facts, costs and media can only change while the listing is a draft or rejected");
+                    "Listing details, property facts, costs and media can only change before approval");
+        }
+        ListingType type = request.listingType() == null
+                ? ListingType.valueOf(row.listingType()) : request.listingType();
+        ListingCategory category = request.category();
+        if (category == ListingCategory.SHORTLET && type == ListingType.SALE) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "invalid_category",
+                    "Short-let listings must be rentals");
         }
         boolean priceChanged = (request.price() != null && request.price().compareTo(row.price()) != 0)
-                || (request.pricePeriod() != null && request.pricePeriod() != row.pricePeriod());
-        PricePeriod period = request.pricePeriod() == null ? row.pricePeriod() : request.pricePeriod();
-        validatePricePeriod(ListingType.valueOf(row.listingType()), period);
+                || (request.listingType() != null && request.listingType() != ListingType.valueOf(row.listingType()))
+                || (request.pricePeriod() != null && request.pricePeriod() != row.pricePeriod())
+                || (request.listingType() == ListingType.SALE && row.pricePeriod() != null);
+        PricePeriod period = type == ListingType.SALE ? null
+                : request.pricePeriod() == null ? row.pricePeriod() : request.pricePeriod();
+        validatePricePeriod(type, period);
 
-        listings.update(listingId, request, request.pricePeriod());
+        listings.update(listingId, request, period);
 
         if (request.property() != null) {
             validateCoordinates(request.property().latitude(), request.property().longitude());
@@ -245,6 +264,15 @@ public class ListingService {
     }
 
     @Transactional(readOnly = true)
+    public OwnerListingDetailDto ownedListingDetail(UUID advertiserId, UUID listingId) {
+        OwnerListingDto ownerRow = listings.findByAdvertiserAndId(advertiserId, listingId)
+                .orElseThrow(ListingService::listingNotFound);
+        ListingDetailDto detail = details.findForOwner(advertiserId, listingId)
+                .orElseThrow(ListingService::listingNotFound);
+        return new OwnerListingDetailDto(detail, ownerRow.lifecycle(), ownerRow.reviewNote());
+    }
+
+    @Transactional(readOnly = true)
     public AdvertiserSummaryDto summary(UUID advertiserId) {
         return new AdvertiserSummaryDto(
                 summaries.listingsByLifecycle(advertiserId),
@@ -266,5 +294,9 @@ public class ListingService {
     private static ApiException invalidTransition(String from, String to) {
         return new ApiException(HttpStatus.CONFLICT, "invalid_lifecycle_transition",
                 "Cannot move a " + from + " listing to " + to);
+    }
+
+    private static ApiException listingNotFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, "listing_not_found", "Listing not found");
     }
 }

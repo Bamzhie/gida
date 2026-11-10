@@ -1,10 +1,30 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { guardDashboardWrite, problemResponse, springErrorResponse, springForm } from "@/lib/bff";
+import { ACCESS_COOKIE } from "@/lib/api-base";
+import { guardDashboardWrite, problemResponse, springCall, springErrorResponse, springForm } from "@/lib/bff";
 import type { ManagedMediaDto } from "@/lib/api-types";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type RouteContext = { params: Promise<{ listingId: string }> };
+
+/** GET /api/dashboard/listings/{id}/media — list owner-manageable media entries. */
+export async function GET(request: NextRequest, { params }: RouteContext) {
+  const { listingId } = await params;
+  if (!UUID.test(listingId)) {
+    return problemResponse(400, "invalid_filter", "That listing id is not valid.");
+  }
+  const token = request.cookies.get(ACCESS_COOKIE)?.value;
+  if (!token) {
+    return problemResponse(401, "signed_out", "Sign in to manage your listings.");
+  }
+
+  const result = await springCall<ManagedMediaDto[]>(`/me/listings/${listingId}/media`, {
+    method: "GET",
+    token,
+  });
+  if (!result.ok) return springErrorResponse(result);
+  return NextResponse.json(result.data);
+}
 
 /**
  * POST /api/dashboard/listings/{id}/media — upload one file. The multipart

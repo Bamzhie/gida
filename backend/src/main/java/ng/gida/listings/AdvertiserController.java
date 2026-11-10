@@ -90,6 +90,12 @@ public class AdvertiserController {
         return listingService.ownListings(UUID.fromString(jwt.getSubject()), Paging.of(page, size));
     }
 
+    @GetMapping("/me/listings/{id}")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public OwnerListingDetailDto ownedDetail(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return listingService.ownedListingDetail(UUID.fromString(jwt.getSubject()), id);
+    }
+
     @GetMapping("/me/advertiser-summary")
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public AdvertiserSummaryDto summary(@AuthenticationPrincipal Jwt jwt) {

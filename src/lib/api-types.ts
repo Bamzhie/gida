@@ -151,6 +151,20 @@ export type ListingDetailDto = {
   updatedAt: string;
 };
 
+export type OwnerListingDetailDto = {
+  listing: ListingDetailDto;
+  lifecycle: Lifecycle;
+  reviewNote: string | null;
+};
+
+export type AccountProfileDto = {
+  name: string;
+  email: string;
+  phone: string | null;
+  agencyName: string | null;
+  bio: string | null;
+};
+
 export type PageResponse<T> = {
   items: T[];
   page: number;

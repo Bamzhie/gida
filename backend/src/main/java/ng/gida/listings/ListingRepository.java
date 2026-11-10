@@ -13,6 +13,7 @@ import ng.gida.shared.Vocabulary.CostType;
 import ng.gida.shared.Vocabulary.ListingCategory;
 import ng.gida.shared.Vocabulary.MediaKind;
 import ng.gida.shared.Vocabulary.PricePeriod;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -105,7 +106,7 @@ public class ListingRepository {
             sql.append(", price = :price");
             params.put("price", request.price());
         }
-        if (period != null) {
+        if (request.listingType() == null && period != null) {
             sql.append(", price_period = :pricePeriod");
             params.put("pricePeriod", period.name());
         }
@@ -113,9 +114,22 @@ public class ListingRepository {
             sql.append(", availability = :availability");
             params.put("availability", request.availability().name());
         }
+        if (request.listingType() != null) {
+            sql.append(", listing_type = :listingType, price_period = :pricePeriod");
+            params.put("listingType", request.listingType().name());
+            params.put("pricePeriod", period == null ? null : period.name());
+        }
+        if (request.category() != null) {
+            sql.append(", category = :category");
+            params.put("category", request.category().name());
+        }
         sql.append(" WHERE id = :id");
         params.put("id", listingId);
-        jdbc.sql(sql.toString()).params(params).update();
+        MapSqlParameterSource sqlParams = new MapSqlParameterSource(params);
+        if (request.listingType() != null && period == null) {
+            sqlParams.addValue("pricePeriod", null, Types.VARCHAR);
+        }
+        jdbc.sql(sql.toString()).paramSource(sqlParams).update();
     }
 
     public void submit(UUID listingId, boolean autoApprove) {
@@ -278,6 +292,37 @@ public class ListingRepository {
                             publishedAt == null ? null : publishedAt.toInstant(), rs.getString("review_note"));
                 })
                 .list();
+    }
+
+    public Optional<OwnerListingDto> findByAdvertiserAndId(UUID advertiserId, UUID listingId) {
+        return jdbc.sql("""
+                        SELECT l.id, l.title, l.lifecycle, l.availability, l.price, l.price_period,
+                               l.created_at, l.published_at, review.reason AS review_note
+                        FROM listings l
+                        LEFT JOIN LATERAL (
+                            SELECT reason FROM moderation_actions a
+                            WHERE a.target_type='LISTING' AND a.target_id=l.id
+                              AND a.action IN ('REJECT','REQUEST_CORRECTIONS')
+                            ORDER BY a.created_at DESC,a.id DESC LIMIT 1
+                        ) review ON true
+                        WHERE l.advertiser_id = :advertiserId AND l.id = :listingId
+                        """)
+                .param("advertiserId", advertiserId)
+                .param("listingId", listingId)
+                .query((rs, index) -> {
+                    OffsetDateTime publishedAt = rs.getObject("published_at", OffsetDateTime.class);
+                    return new OwnerListingDto(
+                            rs.getObject("id", UUID.class),
+                            rs.getString("title"),
+                            rs.getString("lifecycle"),
+                            rs.getString("availability"),
+                            rs.getBigDecimal("price"),
+                            rs.getString("price_period"),
+                            rs.getObject("created_at", OffsetDateTime.class).toInstant(),
+                            publishedAt == null ? null : publishedAt.toInstant(),
+                            rs.getString("review_note"));
+                })
+                .optional();
     }
 
     public record ListingRow(UUID id, UUID propertyId, UUID advertiserId, String listingType,
