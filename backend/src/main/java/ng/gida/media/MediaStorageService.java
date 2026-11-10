@@ -17,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MediaStorageService {
 
-    static final int MAX_MEDIA_PER_LISTING = 20;
+    static final int MAX_IMAGES_AND_PLANS_PER_LISTING = 10;
+    static final int MAX_VIDEOS_PER_LISTING = 2;
     static final int MAX_PHOTO_OR_FLOOR_PLAN_BYTES = 10 * 1024 * 1024;
     static final int MAX_VIDEO_BYTES = 100 * 1024 * 1024;
     static final String URL_PREFIX = "/media/";
@@ -50,9 +51,12 @@ public class MediaStorageService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "unsupported_media",
                     "The uploaded file is larger than the " + (cap / (1024 * 1024)) + " MB cap for " + kind);
         }
-        if (countMedia(listingId) >= MAX_MEDIA_PER_LISTING) {
+        boolean atLimit = kind == MediaKind.VIDEO
+                ? countMediaOfKind(listingId, MediaKind.VIDEO) >= MAX_VIDEOS_PER_LISTING
+                : countImagesAndPlans(listingId) >= MAX_IMAGES_AND_PLANS_PER_LISTING;
+        if (atLimit) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "too_many_media",
-                    "A listing may carry at most 20 media entries");
+                    "A listing may carry up to 10 photos or floor plans and 2 videos");
         }
         String urlKey;
         if (kind == MediaKind.PHOTO) {
@@ -129,6 +133,12 @@ public class MediaStorageService {
                 .list();
     }
 
+    @Transactional(readOnly = true)
+    public List<MediaDto> listOwnedMedia(UUID actorId, boolean admin, UUID listingId) {
+        requireOwnedListing(actorId, admin, listingId, false);
+        return listMedia(listingId);
+    }
+
     private void deleteObjects(MediaKind kind, String url) {
         if (!url.startsWith(URL_PREFIX)) {
             return;
@@ -151,11 +161,18 @@ public class MediaStorageService {
     }
 
     private void requireOwnedDraft(UUID actorId, boolean admin, UUID listingId) {
+        ListingRef listing = requireOwnedListing(actorId, admin, listingId, true);
+        if (!editableBeforeApproval(listing.lifecycle())) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "listing_locked",
+                    "Media can only change before an admin approves the listing");
+        }
+    }
+
+    private ListingRef requireOwnedListing(UUID actorId, boolean admin, UUID listingId, boolean lock) {
         ListingRef listing = jdbc.sql("""
                         SELECT id, advertiser_id, lifecycle
                         FROM listings WHERE id = :id
-                        FOR UPDATE
-                        """)
+                        """ + (lock ? " FOR UPDATE" : ""))
                 .param("id", listingId)
                 .query((rs, index) -> new ListingRef(rs.getObject("id", UUID.class),
                         rs.getObject("advertiser_id", UUID.class), rs.getString("lifecycle")))
@@ -165,14 +182,23 @@ public class MediaStorageService {
         if (!admin && !listing.advertiserId().equals(actorId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "not_owner", "You do not own this listing");
         }
-        if (!"DRAFT".equals(listing.lifecycle()) && !"REJECTED".equals(listing.lifecycle())) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "listing_locked",
-                    "Media can only change while the listing is a draft or rejected");
-        }
+        return listing;
     }
 
-    private long countMedia(UUID listingId) {
-        return jdbc.sql("SELECT count(*) FROM listing_media WHERE listing_id = :listingId")
+    private boolean editableBeforeApproval(String lifecycle) {
+        return List.of("DRAFT", "REJECTED", "SUBMITTED", "UNDER_REVIEW").contains(lifecycle);
+    }
+
+    private long countMediaOfKind(UUID listingId, MediaKind kind) {
+        return jdbc.sql("SELECT count(*) FROM listing_media WHERE listing_id = :listingId AND kind = :kind")
+                .param("listingId", listingId)
+                .param("kind", kind.name())
+                .query(Long.class)
+                .single();
+    }
+
+    private long countImagesAndPlans(UUID listingId) {
+        return jdbc.sql("SELECT count(*) FROM listing_media WHERE listing_id = :listingId AND kind IN ('PHOTO','FLOOR_PLAN')")
                 .param("listingId", listingId)
                 .query(Long.class)
                 .single();

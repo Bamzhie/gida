@@ -76,7 +76,7 @@ public class PropertyRepository {
                             year_built = :yearBuilt,
                             parking = :parking,
                             furnished = :furnished,
-                            geom = CASE WHEN :wkt IS NULL THEN NULL ELSE ST_GeomFromText(:wkt, 4326) END,
+                            geom = CASE WHEN :wkt IS NULL THEN geom ELSE ST_GeomFromText(:wkt, 4326) END,
                             updated_at = now()
                         WHERE id = :id
                         """)

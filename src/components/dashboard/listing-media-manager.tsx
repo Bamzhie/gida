@@ -1,28 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, FileText, Film, ImagePlus, Map, Trash2 } from "lucide-react";
+import { useRef, useState, type ChangeEvent, type DragEvent as ReactDragEvent } from "react";
+import { FileText, Map, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { ManagedMediaDto, MediaKind } from "@/lib/api-types";
 import { listingProblemMessage } from "@/lib/listing-problems";
 import { resolveMediaUrl } from "@/lib/media";
 
-const KIND_OPTIONS: { value: MediaKind; label: string }[] = [
-  { value: "PHOTO", label: "Photo" },
-  { value: "VIDEO", label: "Video" },
-  { value: "FLOOR_PLAN", label: "Floor plan" },
-];
-
 /** Mirrors the API whitelist: PHOTO jpeg/png/webp, VIDEO mp4, FLOOR_PLAN pdf/png/jpeg. */
-const ACCEPT_BY_KIND: Record<MediaKind, string> = {
-  PHOTO: "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
-  VIDEO: "video/mp4,.mp4",
-  FLOOR_PLAN: "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg",
-};
+const ACCEPT_MEDIA = "image/jpeg,image/png,image/webp,video/mp4,application/pdf,.jpg,.jpeg,.png,.webp,.mp4,.pdf";
 
 const KIND_LABEL: Record<MediaKind, string> = {
   PHOTO: "Photo",
@@ -74,56 +63,103 @@ type MediaManagerProps = {
 };
 
 /**
- * Media manager for draft listings. The API only accepts media changes while
- * a listing is a draft, so this is rendered on the edit page for drafts only.
- * Uploaded entries arrive with ids, so delete and reorder work within this
- * session; media saved on an earlier visit cannot be listed again until the
- * API exposes owner draft media.
+ * Media manager for listings that are not yet approved. Existing entries are
+ * loaded through the owner-scoped media endpoint so they can be removed or
+ * reordered across visits.
  */
 export function ListingMediaManager({ listingId, mediaOrigin, initialMedia }: MediaManagerProps) {
   const [media, setMedia] = useState<ManagedMediaDto[]>(initialMedia);
-  const [kind, setKind] = useState<MediaKind>("PHOTO");
   const [progress, setProgress] = useState<number | null>(null);
+  const [reordering, setReordering] = useState(false);
+  const [draggedMediaId, setDraggedMediaId] = useState<string | null>(null);
+  const [dragOverMediaId, setDragOverMediaId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const imageCount = media.filter((item) => item.kind !== "VIDEO").length;
+  const videoCount = media.filter((item) => item.kind === "VIDEO").length;
+  const imageMedia = media.filter((item) =>
+    item.kind === "PHOTO" || (item.kind === "FLOOR_PLAN" && !item.url.toLowerCase().endsWith(".pdf"))
+  );
+  const lightboxImages = imageMedia.map((item, index) => ({
+    src: resolveMediaUrl(mediaOrigin, item.url),
+    alt: item.caption ?? `${KIND_LABEL[item.kind]} ${index + 1}`,
+  }));
 
-  async function handleUpload() {
-    const file = inputRef.current?.files?.[0];
-    if (!file) {
-      toast.error("Choose a file to upload first.");
-      return;
-    }
+  async function uploadSelected(file: File, kind: MediaKind) {
     setProgress(0);
     try {
       const uploaded = await uploadFile(listingId, file, kind, setProgress);
       setMedia((current) => [...current, uploaded]);
-      if (inputRef.current) inputRef.current.value = "";
       toast.success("File uploaded.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The upload failed. Try again.");
     } finally {
       setProgress(null);
+      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
-  async function move(index: number, delta: -1 | 1) {
-    const target = index + delta;
-    if (target < 0 || target >= media.length) return;
-    const previous = media;
-    const next = [...media];
-    [next[index], next[target]] = [next[target], next[index]];
-    setMedia(next.map((item, order) => ({ ...item, sortOrder: order })));
-    const response = await fetch(`/api/dashboard/listings/${listingId}/media/order`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(next.map((item, order) => ({ id: item.id, sortOrder: order }))),
-    });
-    if (!response.ok) {
-      setMedia(previous);
-      toast.error(listingProblemMessage(await response.json().catch(() => null)));
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    const kind: MediaKind | null = file.type === "application/pdf" || extension === "pdf"
+      ? "FLOOR_PLAN"
+      : file.type === "video/mp4" || extension === "mp4"
+        ? "VIDEO"
+        : ["image/jpeg", "image/png", "image/webp"].includes(file.type)
+          || ["jpg", "jpeg", "png", "webp"].includes(extension ?? "")
+          ? "PHOTO"
+          : null;
+    if (!kind) {
+      toast.error("Choose a JPG, PNG, WebP, MP4 or PDF file.");
+      event.currentTarget.value = "";
       return;
     }
-    const ordered = (await response.json()) as ManagedMediaDto[];
-    setMedia(ordered);
+    const count = kind === "VIDEO" ? videoCount : imageCount;
+    const limit = kind === "VIDEO" ? 2 : 10;
+    if (count >= limit) {
+      toast.error(kind === "VIDEO" ? "You can add up to 2 videos." : "You can add up to 10 photos or floor plans.");
+      event.currentTarget.value = "";
+      return;
+    }
+    void uploadSelected(file, kind);
+  }
+
+  function chooseFile() {
+    if (reordering) return;
+    inputRef.current?.click();
+  }
+
+  async function reorder(sourceId: string, targetId: string) {
+    if (sourceId === targetId || reordering || progress !== null) return;
+    const previous = media;
+    const next = [...media];
+    const sourceIndex = next.findIndex((item) => item.id === sourceId);
+    const targetIndex = next.findIndex((item) => item.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const [dragged] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, dragged);
+    setMedia(next.map((item, order) => ({ ...item, sortOrder: order })));
+    setReordering(true);
+    try {
+      const response = await fetch(`/api/dashboard/listings/${listingId}/media/order`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(next.map((item, order) => ({ id: item.id, sortOrder: order }))),
+      });
+      if (!response.ok) {
+        setMedia(previous);
+        toast.error(listingProblemMessage(await response.json().catch(() => null)));
+        return;
+      }
+      const ordered = (await response.json()) as ManagedMediaDto[];
+      setMedia(ordered);
+    } catch {
+      setMedia(previous);
+      toast.error("The new media order could not be saved. Try again.");
+    } finally {
+      setReordering(false);
+    }
   }
 
   async function remove(id: string) {
@@ -145,120 +181,120 @@ export function ListingMediaManager({ listingId, mediaOrigin, initialMedia }: Me
       <div>
         <h2 className="font-heading text-lg font-semibold">Photos, video and floor plans</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Up to 20 files. Photos: JPG, PNG or WebP up to 10&nbsp;MB. Video: MP4 up to 100&nbsp;MB.
-          Floor plans: PDF, PNG or JPG up to 10&nbsp;MB. Files can only change while the listing is
-          a draft.
+          Add up to 10 photos or floor plans and 2 videos. Photos: JPG, PNG or WebP up to 10&nbsp;MB;
+          videos: MP4 up to 100&nbsp;MB; PDF floor plans up to 10&nbsp;MB.
         </p>
       </div>
-      <div className="grid gap-3 rounded-2xl border border-border bg-secondary/30 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-        <div className="space-y-2">
-          <Label htmlFor="media-file">File</Label>
-          <input
-            ref={inputRef}
-            id="media-file"
-            type="file"
-            accept={ACCEPT_BY_KIND[kind]}
-            className="flex h-10 w-full cursor-pointer rounded-xl border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="media-kind">Shows</Label>
-          <Select value={kind} onValueChange={(value) => setKind(value as MediaKind)}>
-            <SelectTrigger id="media-kind" className="w-full sm:w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {KIND_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button type="button" onClick={handleUpload} disabled={progress !== null} className="rounded-xl">
-          <ImagePlus /> Upload
-        </Button>
+      <div className="flex justify-end">
+        <p className="text-sm text-muted-foreground">Photos and floor plans: {imageCount}/10 · Videos: {videoCount}/2</p>
       </div>
-      {progress !== null && (
-        <div
-          role="progressbar"
-          aria-valuenow={progress}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Upload progress"
-          className="h-2 w-full overflow-hidden rounded-full bg-secondary"
-        >
-          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-        </div>
-      )}
-      {media.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No files uploaded in this session yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {media.map((item, index) => (
-            <li
-              key={item.id}
-              className="flex flex-wrap items-center gap-3 rounded-2xl border border-border p-3"
-            >
-              <span className="relative flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-muted-foreground">
-                {item.kind === "VIDEO" ? (
-                  <Film className="h-6 w-6" aria-hidden="true" />
-                ) : item.kind === "FLOOR_PLAN" && item.url.toLowerCase().endsWith(".pdf") ? (
-                  <FileText className="h-6 w-6" aria-hidden="true" />
-                ) : (
-                  /* Backend-served media lives on another origin; next/image cannot be configured for it. */
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={resolveMediaUrl(mediaOrigin, item.url)}
-                    alt={item.caption ?? `Media ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <Badge variant={item.kind === "PHOTO" ? "secondary" : "outline"}>
-                  {KIND_LABEL[item.kind]}
-                </Badge>
-                {item.caption && (
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{item.caption}</p>
-                )}
+      <input
+        ref={inputRef}
+        id="media-file"
+        type="file"
+        accept={ACCEPT_MEDIA}
+        className="sr-only"
+        aria-label="Choose a photo, video or floor plan"
+        onChange={handleFileChange}
+      />
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        {media.map((item, index) => (
+          <li
+            key={item.id}
+            draggable={!reordering && progress === null}
+            onDragStart={(event: ReactDragEvent<HTMLLIElement>) => {
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", item.id);
+              setDraggedMediaId(item.id);
+            }}
+            onDragOver={(event: ReactDragEvent<HTMLLIElement>) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setDragOverMediaId(item.id);
+            }}
+            onDrop={(event: ReactDragEvent<HTMLLIElement>) => {
+              event.preventDefault();
+              const sourceId = event.dataTransfer.getData("text/plain") || draggedMediaId;
+              if (sourceId) void reorder(sourceId, item.id);
+              setDraggedMediaId(null);
+              setDragOverMediaId(null);
+            }}
+            onDragEnd={() => {
+              setDraggedMediaId(null);
+              setDragOverMediaId(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              const targetIndex = event.key === "ArrowUp" ? index - 1 : event.key === "ArrowDown" ? index + 1 : -1;
+              const target = media[targetIndex];
+              if (!target) return;
+              event.preventDefault();
+              void reorder(item.id, target.id);
+            }}
+            tabIndex={0}
+            aria-label={`Media ${index + 1}, ${KIND_LABEL[item.kind]}. Drag to reorder.`}
+            className={`group relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary ${
+              dragOverMediaId === item.id ? "ring-2 ring-primary ring-offset-2" : ""
+            } ${reordering ? "cursor-wait" : "cursor-grab active:cursor-grabbing"}`}
+          >
+            {item.kind === "VIDEO" ? (
+              <video
+                src={resolveMediaUrl(mediaOrigin, item.url)}
+                className="h-full w-full object-cover"
+                controls
+                preload="metadata"
+                aria-label={`Video ${index + 1}`}
+              />
+            ) : item.kind === "FLOOR_PLAN" && item.url.toLowerCase().endsWith(".pdf") ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                <FileText className="size-8" aria-hidden="true" />
+                <span className="text-sm">Floor plan PDF</span>
               </div>
-              <div className="flex items-center gap-1">
+            ) : (
+              <ImageLightbox
+                src={resolveMediaUrl(mediaOrigin, item.url)}
+                alt={item.caption ?? `${KIND_LABEL[item.kind]} ${index + 1}`}
+                images={lightboxImages}
+                index={Math.max(0, imageMedia.findIndex((image) => image.id === item.id))}
+                buttonClassName="absolute inset-0 h-full w-full"
+                imageClassName="h-full w-full object-cover"
+              />
+            )}
+            <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-2">
+              <Badge variant="secondary" className="max-w-24 truncate">{KIND_LABEL[item.kind]}</Badge>
+              <div className="flex items-center gap-1 rounded-full bg-background/90 p-1 shadow-sm">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => move(index, -1)}
-                  disabled={index === 0}
-                  aria-label={`Move media ${index + 1} earlier`}
-                >
-                  <ArrowUp />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => move(index, 1)}
-                  disabled={index === media.length - 1}
-                  aria-label={`Move media ${index + 1} later`}
-                >
-                  <ArrowDown />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8"
                   onClick={() => remove(item.id)}
+                  disabled={progress !== null || reordering}
                   aria-label={`Remove media ${index + 1}`}
-                >
-                  <Trash2 />
-                </Button>
+                ><Trash2 /></Button>
               </div>
-            </li>
-          ))}
-        </ul>
-      )}
+            </div>
+          </li>
+        ))}
+        <li className="aspect-square">
+          <button
+            type="button"
+            onClick={chooseFile}
+            disabled={progress !== null || reordering}
+            aria-label="Add media"
+            className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-secondary/30 text-muted-foreground transition-colors hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {progress !== null ? (
+              <span className="text-sm font-medium">Uploading {progress}%</span>
+            ) : (
+              <>
+                <Plus className="size-8" aria-hidden="true" />
+                <span className="text-sm font-medium">Add media</span>
+              </>
+            )}
+          </button>
+        </li>
+      </ul>
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <Map className="h-3.5 w-3.5" aria-hidden="true" />
         The first photo becomes the listing&apos;s cover.

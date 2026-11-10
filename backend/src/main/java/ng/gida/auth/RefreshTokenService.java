@@ -64,6 +64,11 @@ public class RefreshTokenService {
         tokens.findByHashForUpdate(hash(presented)).ifPresent(row -> tokens.revoke(row.id()));
     }
 
+    @Transactional
+    public void revokeAllForUser(UUID userId) {
+        tokens.revokeAllForUser(userId);
+    }
+
     public record Issued(UUID id, UUID userId, String token) {
     }
 

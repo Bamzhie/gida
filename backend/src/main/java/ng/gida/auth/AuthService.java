@@ -58,6 +58,18 @@ public class AuthService {
                 authUser);
     }
 
+    @Transactional
+    public void changePassword(UUID userId, ChangePasswordRequest request) {
+        UserRow user = users.findById(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "user_not_found", "User no longer exists"));
+        if (!encoder.matches(request.currentPassword(), user.passwordHash())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "current_password_incorrect",
+                    "Current password is incorrect");
+        }
+        users.updatePasswordHash(userId, encoder.encode(request.newPassword()));
+        refreshTokens.revokeAllForUser(userId);
+    }
+
     public RefreshResponse refresh(String presented) {
         RefreshTokenService.Issued rotated = refreshTokens.rotate(presented);
         var user = users.findById(rotated.userId())

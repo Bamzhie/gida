@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Copy, PauseCircle, Pencil, PlayCircle, RefreshCw, Send, Tag } from "lucide-react";
+import { BadgeCheck, Copy, Eye, PauseCircle, Pencil, PlayCircle, RefreshCw, Send, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ListingRenewedDto, ListingType, Lifecycle } from "@/lib/api-types";
@@ -14,6 +14,8 @@ type ListingRowActionsProps = {
   listingId: string;
   lifecycle: Lifecycle;
   listingType: ListingType;
+  showDetails?: boolean;
+  showEdit?: boolean;
 };
 
 type Action = "submit" | "resume" | "pause" | "confirm";
@@ -27,14 +29,14 @@ type Action = "submit" | "resume" | "pause" | "confirm";
  * queue and only an admin can make it live, so no action here ever claims a
  * listing is public when it is not.
  */
-export function ListingRowActions({ listingId, lifecycle, listingType }: ListingRowActionsProps) {
+export function ListingRowActions({ listingId, lifecycle, listingType, showDetails = true, showEdit = true }: ListingRowActionsProps) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
   function requireSignIn(status: number): boolean {
     if (status !== 401) return false;
     toast.error("Sign in to manage your listings.");
-    router.push(`/login?next=${encodeURIComponent("/dashboard/listings")}`);
+    router.push("/login?next=" + encodeURIComponent("/dashboard/agent/listings"));
     return true;
   }
 
@@ -109,19 +111,27 @@ export function ListingRowActions({ listingId, lifecycle, listingType }: Listing
     router.refresh();
   }
 
-  const editable = lifecycle === "DRAFT" || lifecycle === "REJECTED";
+  const editable = lifecycle === "DRAFT" || lifecycle === "REJECTED" || lifecycle === "SUBMITTED" || lifecycle === "UNDER_REVIEW";
+  const canSubmit = lifecycle === "DRAFT" || lifecycle === "REJECTED";
   const inReview = lifecycle === "SUBMITTED" || lifecycle === "UNDER_REVIEW";
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
-      {editable && (
+      {showDetails && (
+        <Button type="button" variant="ghost" size="sm" asChild className="rounded-xl">
+          <Link href={"/dashboard/agent/listings/" + listingId}>
+            <Eye /> Details
+          </Link>
+        </Button>
+      )}
+      {canSubmit && (
         <Button type="button" size="sm" onClick={() => transition("submit")} disabled={busy !== null} className="rounded-xl">
           <Send /> Submit for review
         </Button>
       )}
-      {editable && (
+      {editable && showEdit && (
         <Button type="button" variant="outline" size="sm" asChild className="rounded-xl">
-          <Link href={`/dashboard/listings/${listingId}/edit`}>
+          <Link href={"/dashboard/agent/listings/" + listingId + "/edit"}>
             <Pencil /> Edit
           </Link>
         </Button>
