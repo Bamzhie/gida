@@ -10,6 +10,8 @@ import ng.gida.listings.CreateListingRequest.CostInput;
 import ng.gida.listings.CreateListingRequest.MediaInput;
 import ng.gida.listings.CreateListingRequest.PropertyInput;
 import ng.gida.shared.Vocabulary.Availability;
+import ng.gida.shared.Vocabulary.ListingCategory;
+import ng.gida.shared.Vocabulary.ListingType;
 import ng.gida.shared.Vocabulary.PricePeriod;
 
 public record PatchListingRequest(
@@ -18,6 +20,8 @@ public record PatchListingRequest(
         @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal price,
         PricePeriod pricePeriod,
         Availability availability,
+        ListingType listingType,
+        ListingCategory category,
         @Valid PropertyInput property,
         @Valid List<CostInput> costs,
         @Valid List<MediaInput> media) {

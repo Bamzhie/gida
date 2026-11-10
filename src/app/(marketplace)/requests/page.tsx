@@ -5,6 +5,8 @@ import { RequestForm } from "@/components/marketplace/request-form";
 import { getMyRequests, hasSession } from "@/lib/requests";
 import { getAmenities, getLocations } from "@/lib/listings";
 import { formatPrice } from "@/lib/utils";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Post a property request",
@@ -14,14 +16,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RequestsPage() {
-  const signedIn = await hasSession();
+  const [signedIn, user] = await Promise.all([hasSession(), getCurrentUser()]);
   const [areas, amenities, mine] = await Promise.all([
     getLocations(),
     getAmenities(),
     signedIn ? getMyRequests() : Promise.resolve([]),
   ]);
 
-  return (
+  const content = (
     <div className="container mx-auto max-w-3xl px-4 py-10">
       <div className="mb-8">
         <Badge variant="secondary" className="mb-4 gap-2">
@@ -61,4 +63,6 @@ export default async function RequestsPage() {
       )}
     </div>
   );
+
+  return user?.role === "USER" ? <DashboardShell role="USER">{content}</DashboardShell> : content;
 }

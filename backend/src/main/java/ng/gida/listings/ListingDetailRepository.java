@@ -19,12 +19,16 @@ public class ListingDetailRepository {
         this.jdbc = jdbc;
     }
 
-    public Optional<ListingDetailDto> find(UUID listingId) { return findInternal(listingId, false); }
+    public Optional<ListingDetailDto> find(UUID listingId) { return findInternal(listingId, false, null); }
 
-    public Optional<ListingDetailDto> findDetailForAdmin(UUID listingId) { return findInternal(listingId, true); }
+    public Optional<ListingDetailDto> findDetailForAdmin(UUID listingId) { return findInternal(listingId, true, null); }
 
-    private Optional<ListingDetailDto> findInternal(UUID listingId, boolean admin) {
-        return jdbc.sql("""
+    public Optional<ListingDetailDto> findForOwner(UUID advertiserId, UUID listingId) {
+        return findInternal(listingId, true, advertiserId);
+    }
+
+    private Optional<ListingDetailDto> findInternal(UUID listingId, boolean includeUnpublished, UUID advertiserId) {
+        var statement = jdbc.sql("""
                         SELECT l.id, l.title, l.description, l.listing_type, l.category,
                                l.price, l.price_period, l.availability,
                                COALESCE(
@@ -56,10 +60,11 @@ public class ListingDetailRepository {
                         JOIN users u ON u.id = l.advertiser_id
                         LEFT JOIN advertiser_profiles ap ON ap.user_id = u.id
                         WHERE l.id = :id
-                        """ + (admin ? "" : " AND l.lifecycle='PUBLISHED' AND (l.expires_at IS NULL OR l.expires_at > now()) AND u.status='ACTIVE'"))
-                .param("id", listingId)
-                .query(this::mapDetail)
-                .optional();
+                        """ + (advertiserId == null ? "" : " AND l.advertiser_id = :advertiserId")
+                + (includeUnpublished ? "" : " AND l.lifecycle='PUBLISHED' AND (l.expires_at IS NULL OR l.expires_at > now()) AND u.status='ACTIVE'"))
+                .param("id", listingId);
+        if (advertiserId != null) statement = statement.param("advertiserId", advertiserId);
+        return statement.query(this::mapDetail).optional();
     }
 
     private ListingDetailDto mapDetail(ResultSet rs, int rowNumber) throws SQLException {

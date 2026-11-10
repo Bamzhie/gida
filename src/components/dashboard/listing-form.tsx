@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { PlayCircle, Plus, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -55,32 +55,6 @@ export type ListingFormInitial = {
   costs: ListingFormCost[];
 };
 
-export function emptyListingInitial(): ListingFormInitial {
-  return {
-    listingType: "SALE",
-    category: "STANDARD",
-    title: "",
-    description: "",
-    price: "",
-    pricePeriod: "",
-    availability: "AVAILABLE",
-    addressLine: "",
-    stateSlug: "",
-    lgaSlug: "",
-    locationSlug: "",
-    propertyType: "",
-    bedrooms: "",
-    bathrooms: "",
-    sizeSqm: "",
-    lotSizeSqm: "",
-    yearBuilt: "",
-    parking: "",
-    furnished: "",
-    amenities: [],
-    costs: [],
-  };
-}
-
 const PRICE_PERIOD_LABELS: Record<PricePeriod, string> = {
   YEAR: "Per year",
   MONTH: "Per month",
@@ -113,6 +87,7 @@ type ListingFormProps = {
   initial: ListingFormInitial;
   locations: LocationDto[];
   amenities: AmenityDto[];
+  children?: ReactNode;
 };
 
 function optionalNumber(value: string): number | undefined {
@@ -120,6 +95,37 @@ function optionalNumber(value: string): number | undefined {
   if (!trimmed) return undefined;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeMoneyInput(value: string): string {
+  const cleaned = value.replace(/,/g, "").replace(/[^\d.]/g, "");
+  const [whole, ...fractions] = cleaned.split(".");
+  if (fractions.length === 0) return whole;
+  return `${whole || "0"}.${fractions.join("").slice(0, 2)}`;
+}
+
+function formatMoneyInput(value: string): string {
+  if (!value) return "";
+  const [whole, fraction] = value.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return fraction === undefined ? grouped : `${grouped}.${fraction}`;
+}
+
+function updateMoneyInput(event: ChangeEvent<HTMLInputElement>, onChange: (value: string) => void) {
+  const input = event.currentTarget;
+  const logicalCursor = input.value.slice(0, input.selectionStart ?? input.value.length).replace(/,/g, "").length;
+  const nextValue = normalizeMoneyInput(input.value);
+  onChange(nextValue);
+  requestAnimationFrame(() => {
+    const formatted = formatMoneyInput(nextValue);
+    let cursor = 0;
+    let characters = 0;
+    while (cursor < formatted.length && characters < logicalCursor) {
+      if (formatted[cursor] !== ",") characters += 1;
+      cursor += 1;
+    }
+    input.setSelectionRange(cursor, cursor);
+  });
 }
 
 export function ListingForm({
@@ -131,6 +137,7 @@ export function ListingForm({
   initial,
   locations,
   amenities,
+  children,
 }: ListingFormProps) {
   const router = useRouter();
   const [values, setValues] = useState<ListingFormInitial>(initial);
@@ -163,6 +170,32 @@ export function ListingForm({
     }));
   }
 
+  function updateListingType(listingType: ListingType) {
+    setValues((current) => {
+      const category = listingType === "SALE" && current.category === "SHORTLET"
+        ? "STANDARD"
+        : current.category;
+      const pricePeriod = listingType === "SALE"
+        ? ""
+        : current.listingType === "SALE"
+          ? (category === "SHORTLET" ? "NIGHT" : "YEAR")
+          : current.pricePeriod;
+      return { ...current, listingType, category, pricePeriod };
+    });
+  }
+
+  function updateCategory(category: ListingCategory) {
+    setValues((current) => {
+      const allowedPeriods: PricePeriod[] = category === "SHORTLET" ? ["NIGHT", "STAY"] : ["YEAR", "MONTH"];
+      const pricePeriod = current.listingType !== "RENT"
+        ? current.pricePeriod
+        : allowedPeriods.includes(current.pricePeriod as PricePeriod)
+          ? current.pricePeriod
+          : category === "SHORTLET" ? "NIGHT" : "YEAR";
+      return { ...current, category, pricePeriod };
+    });
+  }
+
   function validate(): Record<string, string> {
     const found: Record<string, string> = {};
     if (!values.title.trim()) found.title = "Add a title.";
@@ -190,7 +223,6 @@ export function ListingForm({
     for (const [key, label] of [
       ["bedrooms", "Bedrooms"],
       ["bathrooms", "Bathrooms"],
-      ["parking", "Parking"],
     ] as const) {
       if (values[key].trim() && !COUNT_PATTERN.test(values[key].trim())) {
         found[key] = `${label} must be a whole number.`;
@@ -274,7 +306,7 @@ export function ListingForm({
     }
     const created = (await response.json()) as ListingCreatedDto;
     toast.success("Draft saved. Upload media, then publish when it's ready.");
-    router.push(`/dashboard/listings/${created.id}/edit`);
+    router.push("/dashboard/agent/listings/" + created.id + "/edit");
   }
 
   async function submitEdit(event: FormEvent<HTMLFormElement>) {
@@ -294,8 +326,16 @@ export function ListingForm({
         // When the saved description can't be loaded, blank means "keep it".
         description: values.description.trim() || undefined,
         price: Number(values.price.trim()),
-        pricePeriod: values.listingType === "RENT" ? values.pricePeriod || undefined : undefined,
+        listingType: structureLocked ? undefined : values.listingType,
+        category: structureLocked ? undefined : values.category || "STANDARD",
+        pricePeriod: values.listingType === "RENT" ? values.pricePeriod || undefined : null,
         availability: values.availability,
+        property: structureLocked ? undefined : buildPropertyBody(),
+        costs: structureLocked ? undefined : values.costs.map((cost) => ({
+          type: cost.type,
+          amount: Number(cost.amount.trim()),
+          note: cost.note.trim() || undefined,
+        })),
       }),
     });
     setSubmitting(false);
@@ -305,7 +345,7 @@ export function ListingForm({
       return;
     }
     toast.success("Changes saved.");
-    router.refresh();
+    router.push(listingId ? `/dashboard/agent/listings/${listingId}` : "/dashboard/agent/listings");
   }
 
   async function submitForReview() {
@@ -319,7 +359,7 @@ export function ListingForm({
       return;
     }
     toast.success("Submitted for review. It goes live once a reviewer approves it.");
-    router.push("/dashboard/listings");
+    router.push("/dashboard/agent/listings");
   }
 
   async function resume() {
@@ -337,6 +377,7 @@ export function ListingForm({
   }
 
   const rent = values.listingType === "RENT";
+  const pricePeriods: PricePeriod[] = values.category === "SHORTLET" ? ["NIGHT", "STAY"] : ["YEAR", "MONTH"];
   const errorText = (key: string) =>
     errors[key] ? <p className="text-sm text-destructive">{errors[key]}</p> : null;
 
@@ -348,53 +389,6 @@ export function ListingForm({
 
   const basics = (
     <div className="space-y-5">
-      {mode === "create" ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="listing-type">Listing type *</Label>
-            <Select
-              value={values.listingType}
-              onValueChange={(listingType) =>
-                setValues((current) => ({
-                  ...current,
-                  listingType: listingType as ListingType,
-                  // A sale listing can't be a short-let and never quotes a period.
-                  category: listingType === "SALE" && current.category === "SHORTLET" ? "" : current.category,
-                  pricePeriod: listingType === "SALE" ? "" : current.pricePeriod,
-                }))
-              }
-            >
-              <SelectTrigger id="listing-type"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="SALE">For sale</SelectItem>
-                <SelectItem value="RENT">For rent</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="listing-category">Category</Label>
-            <Select value={values.category || "STANDARD"} onValueChange={(category) => set("category", category as ListingCategory)}>
-              <SelectTrigger id="listing-category"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="STANDARD">Standard</SelectItem>
-                <SelectItem value="SHORTLET" disabled={values.listingType === "SALE"}>Short-let</SelectItem>
-                <SelectItem value="NEW_HOMES">New homes</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <Label>Listing type</Label>
-          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant={values.listingType === "SALE" ? "default" : "secondary"}>
-              For {values.listingType === "SALE" ? "sale" : "rent"}
-            </Badge>
-            {values.category && <Badge variant="outline">{CATEGORY_LABELS[values.category]}</Badge>}
-            Type and category are fixed once a listing is created.
-          </p>
-        </div>
-      )}
       <div className="space-y-2">
         <Label htmlFor="listing-title">Title *</Label>
         <Input
@@ -406,6 +400,69 @@ export function ListingForm({
         />
         {errorText("title")}
       </div>
+      {mode === "create" ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="listing-type">Listing type *</Label>
+            <Select
+              value={values.listingType}
+              onValueChange={(listingType) => updateListingType(listingType as ListingType)}
+            >
+              <SelectTrigger id="listing-type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SALE">For sale</SelectItem>
+                <SelectItem value="RENT">For rent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="listing-category">Category</Label>
+            <Select value={values.category || "STANDARD"} onValueChange={(category) => updateCategory(category as ListingCategory)}>
+              <SelectTrigger id="listing-category"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="STANDARD">Standard</SelectItem>
+                <SelectItem value="SHORTLET" disabled={values.listingType === "SALE"}>Short-let</SelectItem>
+                <SelectItem value="NEW_HOMES">New homes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      ) : structureLocked ? (
+        <div className="space-y-2">
+          <Label>Listing type</Label>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <Badge variant={values.listingType === "SALE" ? "default" : "secondary"}>
+              For {values.listingType === "SALE" ? "sale" : "rent"}
+            </Badge>
+            {values.category && <Badge variant="outline">{CATEGORY_LABELS[values.category]}</Badge>}
+            <span>Type and category are locked after approval.</span>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="listing-type">Listing type *</Label>
+            <Select value={values.listingType} onValueChange={(listingType) => updateListingType(listingType as ListingType)}>
+              <SelectTrigger id="listing-type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SALE">For sale</SelectItem>
+                <SelectItem value="RENT">For rent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="listing-category">Category</Label>
+            <Select value={values.category || "STANDARD"} onValueChange={(category) => updateCategory(category as ListingCategory)}>
+              <SelectTrigger id="listing-category"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="STANDARD">Standard</SelectItem>
+                <SelectItem value="SHORTLET" disabled={values.listingType === "SALE"}>Short-let</SelectItem>
+                <SelectItem value="NEW_HOMES">New homes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="listing-description">{descriptionKnown ? "Description *" : "Description"}</Label>
         <Textarea
@@ -428,22 +485,20 @@ export function ListingForm({
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="listing-price">Price (₦) *</Label>
+          <Label htmlFor="listing-price">{rent ? "Basic rent (₦) *" : "Asking price (₦) *"}</Label>
           <Input
             id="listing-price"
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
             inputMode="decimal"
-            value={values.price}
-            onChange={(event) => set("price", event.target.value)}
-            placeholder={rent ? "e.g. 2500000 per year" : "e.g. 85000000 asking"}
+            value={formatMoneyInput(values.price)}
+            onChange={(event) => updateMoneyInput(event, (price) => set("price", price))}
+            placeholder={rent ? "e.g. 2,500,000" : "e.g. 85,000,000"}
           />
           {errorText("price")}
         </div>
         {rent && (
           <div className="space-y-2">
-            <Label htmlFor="listing-period">Quoted per *</Label>
+            <Label htmlFor="listing-period">How often is this rent paid? *</Label>
             <Select
               value={values.pricePeriod || "none"}
               onValueChange={(period) => set("pricePeriod", period === "none" ? "" : (period as PricePeriod))}
@@ -451,7 +506,7 @@ export function ListingForm({
               <SelectTrigger id="listing-period"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none" disabled>Choose a period</SelectItem>
-                {(Object.keys(PRICE_PERIOD_LABELS) as PricePeriod[]).map((period) => (
+                {pricePeriods.map((period) => (
                   <SelectItem key={period} value={period}>{PRICE_PERIOD_LABELS[period]}</SelectItem>
                 ))}
               </SelectContent>
@@ -460,11 +515,9 @@ export function ListingForm({
           </div>
         )}
       </div>
-      {!rent && (
-        <p className="text-sm text-muted-foreground">
-          Sale listings show a single asking price — no period is quoted.
-        </p>
-      )}
+      <div className="space-y-3 border-t border-border pt-5">
+        {renderCostsSection()}
+      </div>
       {mode === "edit" && (
         <div className="space-y-2">
           <Label htmlFor="listing-availability">Availability</Label>
@@ -477,9 +530,6 @@ export function ListingForm({
               <SelectItem value="RENTED">Rented</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-sm text-muted-foreground">
-            Sold and rented listings stay visible with their status, so the record stays honest.
-          </p>
         </div>
       )}
     </div>
@@ -520,7 +570,7 @@ export function ListingForm({
           {errorText("furnished")}
         </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="listing-bedrooms">Bedrooms</Label>
           <Input id="listing-bedrooms" type="number" min="0" inputMode="numeric" value={values.bedrooms}
@@ -533,26 +583,20 @@ export function ListingForm({
                  onChange={(event) => set("bathrooms", event.target.value)} />
           {errorText("bathrooms")}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="listing-parking">Parking spaces</Label>
-          <Input id="listing-parking" type="number" min="0" inputMode="numeric" value={values.parking}
-                 onChange={(event) => set("parking", event.target.value)} />
-          {errorText("parking")}
-        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="listing-size">Size (m²)</Label>
-          <Input id="listing-size" type="number" min="0" step="0.01" inputMode="decimal" value={values.sizeSqm}
+          <Label htmlFor="listing-size">Indoor floor area (m²)</Label>
+          <Input id="listing-size" type="number" min="0" step="0.01" inputMode="decimal" value={values.sizeSqm} placeholder="e.g. 85"
                  onChange={(event) => set("sizeSqm", event.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="listing-lot">Lot size (m²)</Label>
-          <Input id="listing-lot" type="number" min="0" step="0.01" inputMode="decimal" value={values.lotSizeSqm}
+          <Label htmlFor="listing-lot">Plot or land area (m²)</Label>
+          <Input id="listing-lot" type="number" min="0" step="0.01" inputMode="decimal" value={values.lotSizeSqm} placeholder="e.g. 450"
                  onChange={(event) => set("lotSizeSqm", event.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="listing-year">Year built</Label>
+          <Label htmlFor="listing-year">Year built (if known)</Label>
           <Input id="listing-year" type="number" min="1500" max="2100" inputMode="numeric" value={values.yearBuilt}
                  onChange={(event) => set("yearBuilt", event.target.value)} />
           {errorText("yearBuilt")}
@@ -561,8 +605,7 @@ export function ListingForm({
       <div className="space-y-2">
         <Label htmlFor="listing-address">Street address</Label>
         <Input id="listing-address" value={values.addressLine} maxLength={255}
-               onChange={(event) => set("addressLine", event.target.value)}
-               placeholder="Shown to renters only as the street line" />
+               onChange={(event) => set("addressLine", event.target.value)} />
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
@@ -658,51 +701,41 @@ export function ListingForm({
     </fieldset>
   );
 
-  const costsSection = (
+  function renderCostsSection() {
+    return (
     <fieldset disabled={structureLocked} className="space-y-3 disabled:opacity-70">
       <div>
-        <h3 className="font-semibold">Disclosed costs</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Only add costs you actually charge — buyers and renters see exactly this list, nothing
-          invented.
-        </p>
+        <h3 className="font-semibold">Additional costs and fees</h3>
       </div>
-      {values.costs.length === 0 && !errors.costs && (
-        <p className="text-sm text-muted-foreground">No extra costs disclosed. That is a valid choice.</p>
-      )}
       {errors.costs && <p className="text-sm text-destructive">{errors.costs}</p>}
       <ul className="space-y-2">
         {values.costs.map((cost, index) => (
-          <li key={index} className="grid gap-2 sm:grid-cols-[minmax(0,11rem)_minmax(0,10rem)_1fr_auto]">
-            <Select value={cost.type} onValueChange={(type) => updateCost(index, { type: type as CostType })}>
-              <SelectTrigger aria-label={`Cost ${index + 1} type`}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {COST_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>{COST_LABELS[type]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
-              aria-label={`Cost ${index + 1} amount`}
-              placeholder="Amount (₦)"
-              value={cost.amount}
-              onChange={(event) => updateCost(index, { amount: event.target.value })}
-            />
-            <Input
-              aria-label={`Cost ${index + 1} note`}
-              placeholder="Note (optional, e.g. annual, refundable)"
-              maxLength={255}
-              value={cost.note}
-              onChange={(event) => updateCost(index, { note: event.target.value })}
-            />
+          <li key={index} className="grid items-end gap-3 rounded-xl border border-border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_auto]">
+            <div className="space-y-2">
+              <Label htmlFor={`cost-type-${index}`}>Charge</Label>
+              <Select value={cost.type} onValueChange={(type) => updateCost(index, { type: type as CostType })}>
+                <SelectTrigger id={`cost-type-${index}`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {COST_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>{COST_LABELS[type]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`cost-amount-${index}`}>Amount (₦)</Label>
+              <Input
+                id={`cost-amount-${index}`}
+                type="text"
+                inputMode="decimal"
+                value={formatMoneyInput(cost.amount)}
+                onChange={(event) => updateMoneyInput(event, (amount) => updateCost(index, { amount }))}
+              />
+            </div>
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => setValues((current) => ({ ...current, costs: current.costs.filter((_, i) => i !== index) }))}
               aria-label={`Remove cost ${index + 1}`}
             >
@@ -728,7 +761,8 @@ export function ListingForm({
         <p className="text-sm text-muted-foreground">Costs are locked for this listing.</p>
       )}
     </fieldset>
-  );
+    );
+  }
 
   return (
     <form className="space-y-10" onSubmit={mode === "create" ? submitCreate : submitEdit} noValidate>
@@ -745,22 +779,24 @@ export function ListingForm({
           listings to take it off the market, or duplicate it to keep editing a copy.
         </p>
       )}
-      <section aria-labelledby="basics-heading" className="space-y-5">
-        <h2 id="basics-heading" className="font-heading text-lg font-semibold">The basics</h2>
+      {mode === "edit" && !structureLocked && (lifecycle === "SUBMITTED" || lifecycle === "UNDER_REVIEW") && (
+        <p className="rounded-xl bg-secondary/60 p-4 text-sm text-muted-foreground">
+          This listing is awaiting admin approval. Your changes will be included in the review.
+        </p>
+      )}
+      <section aria-labelledby="listing-info-heading" className="space-y-5">
+        <h2 id="listing-info-heading" className="font-heading text-lg font-semibold">Listing information</h2>
         {basics}
       </section>
       <section aria-labelledby="price-heading" className="space-y-5">
-        <h2 id="price-heading" className="font-heading text-lg font-semibold">Price</h2>
+        <h2 id="price-heading" className="font-heading text-lg font-semibold">{rent ? "Rent and costs" : "Price and costs"}</h2>
         {priceSection}
       </section>
       <section aria-labelledby="property-heading" className="space-y-5">
         <h2 id="property-heading" className="font-heading text-lg font-semibold">The property</h2>
         {propertySection}
       </section>
-      <section aria-labelledby="costs-heading" className="space-y-5">
-        <h2 id="costs-heading" className="font-heading text-lg font-semibold">Costs</h2>
-        {costsSection}
-      </section>
+      {children}
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
         <Button type="submit" disabled={submitting} className="rounded-xl">
           {mode === "create" ? "Save draft" : "Save changes"}
@@ -777,7 +813,7 @@ export function ListingForm({
         )}
         {mode === "create" && (
           <p className="text-sm text-muted-foreground">
-            Saving creates a draft only — nothing goes public until a reviewer approves it.
+            Save this draft to add photos and videos next. It stays private until a reviewer approves it.
           </p>
         )}
       </div>

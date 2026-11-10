@@ -36,6 +36,12 @@ public class MediaController {
         this.storage = storage;
     }
 
+    @GetMapping("/api/v1/me/listings/{listingId}/media")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public List<MediaDto> listOwned(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID listingId) {
+        return media.listOwnedMedia(UUID.fromString(jwt.getSubject()), isAdmin(jwt), listingId);
+    }
+
     @PostMapping("/api/v1/me/listings/{listingId}/media")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")

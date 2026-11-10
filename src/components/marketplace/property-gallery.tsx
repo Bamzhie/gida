@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { Camera, FileText, Film } from "lucide-react";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { MediaKind } from "@/lib/api-types";
 import { resolveMediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,12 @@ export function PropertyGallery({ media, title, mediaOrigin }: PropertyGalleryPr
   const [activeIndex, setActiveIndex] = useState(0);
   const photos = media.filter((item) => item.kind === "PHOTO").length;
   const videos = media.filter((item) => item.kind === "VIDEO").length;
+  const lightboxImages = media
+    .filter((item) => item.kind === "PHOTO" || (item.kind === "FLOOR_PLAN" && !isPdf(item.url)))
+    .map((item, index) => ({
+      src: resolveMediaUrl(mediaOrigin, item.url),
+      alt: item.caption ?? `${title}, image ${index + 1}`,
+    }));
   const visibleIndexes = media.length <= 3
     ? media.map((_, index) => index)
     : [0, 1, 2].map((offset) => (activeIndex + offset) % media.length);
@@ -59,7 +66,20 @@ export function PropertyGallery({ media, title, mediaOrigin }: PropertyGalleryPr
       );
       return primary ? <a href={url} target="_blank" rel="noreferrer" aria-label="Open floor plan PDF in a new tab">{preview}</a> : preview;
     }
-    return <img src={url} alt={item.caption ?? `${title}, image ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" />;
+    const alt = item.caption ?? `${title}, image ${index + 1}`;
+    if (!primary) {
+      return <img src={url} alt={alt} className="absolute inset-0 h-full w-full object-cover" />;
+    }
+    return (
+      <ImageLightbox
+        src={url}
+        alt={alt}
+        images={lightboxImages}
+        index={Math.max(0, lightboxImages.findIndex((image) => image.src === url))}
+        buttonClassName="absolute inset-0 h-full w-full"
+        imageClassName="absolute inset-0 h-full w-full object-cover"
+      />
+    );
   }
 
   if (media.length === 0) return null;
