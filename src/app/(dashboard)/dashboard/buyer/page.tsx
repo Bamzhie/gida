@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getFavoriteListings } from "@/lib/favorites";
 import { getMyRequests } from "@/lib/requests";
 import { getCurrentUser } from "@/lib/session";
+import { API_ORIGIN } from "@/lib/api-base";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +57,7 @@ export default async function BuyerDashboardPage() {
           </Card>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {favorites.slice(0, 3).map((listing) => <ListingCard key={listing.id} listing={listing} saved />)}
+            {favorites.slice(0, 3).map((listing) => <ListingCard key={listing.id} listing={listing} saved mediaOrigin={API_ORIGIN} />)}
           </div>
         )}
       </section>

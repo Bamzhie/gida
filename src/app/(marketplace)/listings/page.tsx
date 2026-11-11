@@ -15,6 +15,7 @@ import {
   type ListingSort,
 } from "@/lib/listing-params";
 import { formatPrice } from "@/lib/utils";
+import { API_ORIGIN } from "@/lib/api-base";
 
 export const dynamic = "force-dynamic";
 
@@ -208,6 +209,7 @@ export default async function ListingsPage({ searchParams }: { searchParams: Sea
                   key={`${listing.id}-${favorites.has(listing.id) ? "s" : "u"}`}
                   listing={listing}
                   saved={favorites.has(listing.id)}
+                  mediaOrigin={API_ORIGIN}
                 />
               ))}
             </div>
