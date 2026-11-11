@@ -29,8 +29,15 @@ export function ListingCard({ listing, saved, mediaOrigin }: Props) {
 
     if (response.status === 401) {
       setFavorite(!next);
-      toast.error("Sign in to save properties.");
-      router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+      toast("Sign in to save properties.", {
+        action: {
+          label: "Sign in",
+          onClick: () => {
+            const returnPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            router.push(`/login?next=${encodeURIComponent(returnPath)}`);
+          },
+        },
+      });
       return;
     }
     if (!response.ok) {

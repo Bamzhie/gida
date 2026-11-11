@@ -21,7 +21,15 @@ export function ListingSummaryActions({ listingId, title, saved }: Props) {
       const response = await fetch(`/api/favorites/${listingId}`, { method: next ? "PUT" : "DELETE" });
       if (response.status === 401) {
         setFavorite(!next);
-        toast("Sign in to save this property");
+        toast("Sign in to save this property.", {
+          action: {
+            label: "Sign in",
+            onClick: () => {
+              const returnPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+              router.push(`/login?next=${encodeURIComponent(returnPath)}`);
+            },
+          },
+        });
         return;
       }
       if (!response.ok) {
