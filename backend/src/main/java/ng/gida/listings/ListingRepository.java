@@ -134,8 +134,11 @@ public class ListingRepository {
 
     public void submit(UUID listingId, boolean autoApprove) {
         jdbc.sql("UPDATE listings SET lifecycle=:state, submitted_at=now(), "
-                    + "published_at=CASE WHEN :auto THEN now() ELSE published_at END, updated_at=now() WHERE "
-                      + "id=:id")
+                    + "published_at=CASE WHEN :auto THEN now() ELSE published_at END, "
+                    + "availability=CASE WHEN :auto AND availability='PENDING' "
+                    + "THEN 'AVAILABLE' ELSE availability END, "
+                    + "confirmed_at=CASE WHEN :auto THEN now() ELSE confirmed_at END, "
+                    + "updated_at=now() WHERE id=:id")
                 .param("state", autoApprove ? "PUBLISHED" : "SUBMITTED")
                 .param("auto", autoApprove)
                 .param("id", listingId)
@@ -146,8 +149,10 @@ public class ListingRepository {
         transition(listingId, "PUBLISHED");
     }
     public void approve(UUID listingId) {
-        jdbc.sql("UPDATE listings SET lifecycle='PUBLISHED', published_at=now(), updated_at=now() WHERE "
-                 + "id=:id")
+        jdbc.sql("UPDATE listings SET lifecycle='PUBLISHED', published_at=now(), "
+                    + "availability=CASE WHEN availability='PENDING' "
+                    + "THEN 'AVAILABLE' ELSE availability END, confirmed_at=now(), updated_at=now() "
+                    + "WHERE id=:id")
                 .param("id", listingId)
                 .update();
     }
@@ -171,8 +176,8 @@ public class ListingRepository {
     }
     public OffsetDateTime confirm(UUID listingId) {
         return jdbc
-                .sql("UPDATE listings SET confirmed_at=now(),updated_at=now() WHERE id=:id RETURNING "
-                     + "confirmed_at")
+                .sql("UPDATE listings SET availability='AVAILABLE', confirmed_at=now(),updated_at=now() "
+                     + "WHERE id=:id RETURNING confirmed_at")
                 .param("id", listingId)
                 .query(OffsetDateTime.class)
                 .single();
