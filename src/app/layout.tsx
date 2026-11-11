@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Bricolage_Grotesque, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { SiteChrome } from "@/components/layout/site-chrome";
 import { Toaster } from "sonner";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
-const heading = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+const heading = localFont({
+  src: "./fonts/Bricolage-Grotesque-Variable.ttf",
+  weight: "200 800",
   variable: "--font-heading",
 });
 
-const body = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const body = localFont({
+  src: "./fonts/Inter-Variable.ttf",
+  weight: "100 900",
   variable: "--font-sans",
 });
 
