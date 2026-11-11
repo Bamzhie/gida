@@ -12,6 +12,7 @@ import { getFavoriteIdSet } from "@/lib/favorites";
 import { getContent } from "@/lib/content";
 import { getAreas, searchListings } from "@/lib/listings";
 import { toCardModel } from "@/lib/listing-view";
+import { API_ORIGIN } from "@/lib/api-base";
 import { siteUrl } from "@/lib/site";
 
 const HERO_IMAGE =
@@ -148,6 +149,7 @@ export default async function HomePage() {
                   key={`${listing.id}-${favorites.has(listing.id) ? "s" : "u"}`}
                   listing={listing}
                   saved={favorites.has(listing.id)}
+                  mediaOrigin={API_ORIGIN}
                 />
               ))}
             </div>

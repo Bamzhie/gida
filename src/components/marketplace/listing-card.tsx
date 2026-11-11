@@ -1,7 +1,8 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Listing photos can be hosted by advertiser-selected external media providers. */
+
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bath, Bed, Heart, House, Mail, MapPin, Maximize, Phone } from "lucide-react";
@@ -11,12 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PropertyArtwork } from "@/components/marketplace/property-artwork";
 import { formatArea, listingPriceLabel, type ListingCardModel } from "@/lib/listing-view";
+import { resolveMediaUrl } from "@/lib/media";
 import { formatDate, formatListingStatus } from "@/lib/utils";
 import { PROPERTY_TYPE_OPTIONS } from "@/lib/vocabulary";
 
-type Props = { listing: ListingCardModel; saved: boolean };
+type Props = { listing: ListingCardModel; saved: boolean; mediaOrigin: string };
 
-export function ListingCard({ listing, saved }: Props) {
+export function ListingCard({ listing, saved, mediaOrigin }: Props) {
   const router = useRouter();
   const [favorite, setFavorite] = useState(saved);
 
@@ -50,6 +52,9 @@ export function ListingCard({ listing, saved }: Props) {
   const propertyTypeLabel = PROPERTY_TYPE_OPTIONS.find(({ value }) => value === listing.propertyType)?.label ?? listing.propertyType;
   const agencyLabel = listing.advertiser.agencyName?.trim() || listing.advertiser.name.trim() || "Gida advertiser";
   const agencyMark = agencyLabel.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "G";
+  const primaryImageUrl = listing.primaryImage
+    ? resolveMediaUrl(mediaOrigin, listing.primaryImage.url)
+    : null;
   const callHref = listing.advertiser.phone?.trim()
     ? `tel:${listing.advertiser.phone.trim().replace(/[^\d+]/g, "")}`
     : null;
@@ -58,13 +63,13 @@ export function ListingCard({ listing, saved }: Props) {
     <Card className="group relative overflow-hidden transition-shadow hover:shadow-lg">
       <Link href={`/listings/${listing.id}`} aria-label={`View ${listing.title}`} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
         <div className="relative aspect-[1.55/1] w-full overflow-hidden bg-secondary">
-          {listing.primaryImage ? (
-            <Image
-              src={listing.primaryImage.url}
+          {primaryImageUrl ? (
+            <img
+              src={primaryImageUrl}
               alt={listing.title}
-              fill
-              sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw"
-              className="object-cover"
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
             <PropertyArtwork propertyType={listing.propertyType} className="absolute inset-0 h-full w-full" />

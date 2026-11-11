@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListingCard } from "@/components/marketplace/listing-card";
 import { getFavoriteListings } from "@/lib/favorites";
-import { ACCESS_COOKIE } from "@/lib/api-base";
+import { ACCESS_COOKIE, API_ORIGIN } from "@/lib/api-base";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getCurrentUser } from "@/lib/session";
 
@@ -40,7 +40,7 @@ export default async function FavoritesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {listings.map((listing) => (
-            <ListingCard key={`${listing.id}-s`} listing={listing} saved />
+            <ListingCard key={`${listing.id}-s`} listing={listing} saved mediaOrigin={API_ORIGIN} />
           ))}
         </div>
       )}

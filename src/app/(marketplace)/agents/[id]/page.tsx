@@ -10,6 +10,7 @@ import { getAdvertiser, initialsOf } from "@/lib/advertisers";
 import { getFavoriteIdSet } from "@/lib/favorites";
 import { searchListings } from "@/lib/listings";
 import { toCardModel } from "@/lib/listing-view";
+import { API_ORIGIN } from "@/lib/api-base";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ export default async function AdvertiserProfilePage({ params }: Props) {
             </div>
             {listings.length > 0 ? (
               <div className="grid gap-5 sm:grid-cols-2">
-                {listings.map((listing) => <ListingCard key={listing.id} listing={listing} saved={favorites.has(listing.id)} />)}
+                {listings.map((listing) => <ListingCard key={listing.id} listing={listing} saved={favorites.has(listing.id)} mediaOrigin={API_ORIGIN} />)}
               </div>
             ) : (
               <Card><CardContent className="py-8 text-sm text-muted-foreground">There are no live listings to show right now.</CardContent></Card>

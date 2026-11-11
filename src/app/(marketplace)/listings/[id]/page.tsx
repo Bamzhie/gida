@@ -320,7 +320,7 @@ export default async function ListingDetailPage({ params }: Props) {
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {advertiserListings.map((candidate) => (
-              <ListingCard key={`${candidate.id}-${favorites.has(candidate.id) ? "s" : "u"}`} listing={candidate} saved={favorites.has(candidate.id)} />
+              <ListingCard key={`${candidate.id}-${favorites.has(candidate.id) ? "s" : "u"}`} listing={candidate} saved={favorites.has(candidate.id)} mediaOrigin={API_ORIGIN} />
             ))}
           </div>
         </section>
@@ -340,6 +340,7 @@ export default async function ListingDetailPage({ params }: Props) {
                 key={`${candidate.id}-${favorites.has(candidate.id) ? "s" : "u"}`}
                 listing={candidate}
                 saved={favorites.has(candidate.id)}
+                mediaOrigin={API_ORIGIN}
               />
             ))}
           </div>
