@@ -38,7 +38,13 @@ cp deploy/.env.example deploy/.env
 chmod 600 deploy/.env
 ```
 
-Edit `deploy/.env` and replace the database password, JWT secret, API hostname, and CORS origin with production values. Generate a JWT secret on the VM with:
+Edit `deploy/.env` and fill in the blank database password and JWT secret, then confirm the API hostname and CORS origin. Generate secrets on the VM with:
+
+```sh
+openssl rand -hex 32
+```
+
+Use that output for `DB_PASSWORD`, and generate the JWT secret separately:
 
 ```sh
 openssl rand -base64 48
